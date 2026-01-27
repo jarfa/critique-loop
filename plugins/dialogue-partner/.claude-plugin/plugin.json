@@ -9,5 +9,5 @@
   "homepage": "https://github.com/jonathanarfa/dialogue-partner",
   "repository": "https://github.com/jonathanarfa/dialogue-partner",
   "license": "MIT",
-  "keywords": ["dialogue", "collaboration", "pair-programming", "multi-agent", "tmux"]
+  "keywords": ["dialogue", "collaboration", "pair-programming", "multi-agent", "polling"]
 }
