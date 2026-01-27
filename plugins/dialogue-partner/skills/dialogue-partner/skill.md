@@ -221,13 +221,23 @@ After writing your turn with `Status: AWAITING <other-role>`, poll for the count
 3. **Check status**: Parse the latest `Status:` line:
    - If `AWAITING <your-role>`: It's your turn — respond following Protocol Rules
    - If `AWAITING <other-role>`: Go back to step 1
-   - If `DONE`: Inform user the dialogue concluded successfully, stop polling
+   - If `DONE`: Extract the summary from the final turn, display it to the user, stop polling
    - If `STUCK`: Inform user the dialogue needs human intervention, stop polling
    - If max rounds exceeded: Inform user, stop polling
 4. **Keep user informed**: Display "Waiting for <other-role>... (checking every 10s)"
 5. **Check timeout**: Parse the timestamp from the last turn header. If >5 minutes old and still awaiting the other role, warn: "Counterpart may have disconnected. They can rejoin with `/dialogue-partner --topic <topic>`"
 
 Continue this loop until it's your turn or a terminal state is reached.
+
+### On Dialogue Completion
+
+When you detect `Status: DONE` (whether you wrote it or the counterpart did):
+
+1. Locate the final turn in the dialogue file
+2. Extract the summary (the content before `Status: DONE`)
+3. Report to your user: "Dialogue concluded. Here's the summary: <summary>"
+
+Both participants must report the same summary from the shared file.
 
 ---
 
