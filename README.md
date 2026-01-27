@@ -46,7 +46,17 @@ The second instance automatically joins as the complementary role.
 | `review` | author, reviewer | Code/doc reviews |
 | `pair` | lead, partner | Pair programming |
 
-Or use arbitrary role names with `--role <name>`. These roles could be descriptive to hint at their role ('speechwriter', 'politician') or not ('alice', 'bob') If you're using `--role`, you need to specify that argument for both claude code instances (unlike `--template` which lets the 2nd instance figure it out from the shared document).
+## Roles
+The `--template` flag (shown above) simply tells each instance what their role is. If those defaults don't work for you, you can also name the roles whatever you want by skipping that flag and using `--role`. For example
+```
+/critique-loop --topic bank-heist --role thief
+```
+And for the second instance:
+```
+/critique-loop --topic bank-heist --role defense-lawyer
+```
+Note that if you're using `--role`, you have to specify it for both instances, not just the first one.
+
 ## Configuration
 
 | Environment Variable | Default | Purpose |
