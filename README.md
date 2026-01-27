@@ -65,4 +65,4 @@ Note that if you're using `--role`, you have to specify it for both instances, n
 
 ## License
 
-MIT
+This project is licensed under the MIT License — see the LICENSE file for details.
