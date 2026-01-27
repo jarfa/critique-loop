@@ -1,0 +1,13 @@
+{
+  "name": "dialogue-partner",
+  "description": "Enable two Claude Code instances to collaborate through turn-based dialogues with automatic notifications",
+  "version": "0.1.0",
+  "author": {
+    "name": "Jonathan Arfa",
+    "email": ""
+  },
+  "homepage": "https://github.com/jonathanarfa/dialogue-partner",
+  "repository": "https://github.com/jonathanarfa/dialogue-partner",
+  "license": "MIT",
+  "keywords": ["dialogue", "collaboration", "pair-programming", "multi-agent", "tmux"]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "jonathanarfa",
+  "owner": {
+    "name": "Jonathan Arfa"
+  },
+  "plugins": [
+    {
+      "name": "dialogue-partner",
+      "source": "./plugins/dialogue-partner",
+      "description": "Enable two Claude Code instances to collaborate through turn-based dialogues with automatic notifications",
+      "version": "0.1.0"
+    }
+  ]
+}
