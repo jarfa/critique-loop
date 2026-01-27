@@ -2,8 +2,14 @@
 
 A Claude Code plugin that enables two Claude Code instances to collaborate through turn-based dialogues with automatic notifications.
 
-## Use Cases
+## Motivation
+When planning or writing code I often spin up multiple instances of Claude Code and use one to critique the other. This has radically reduced the number of errors and poor design choices that made it into plans or code before my own final review.
 
+However, it also required me to act as their intermediary and manually relay feedback back and forth between them.
+
+Hence the need for a formal skill to simplify the process and take the human (mostly) out of the loop until the machines reach a conclusion.
+
+You could use this for:  
 - **Planning/Critiquing** — One instance proposes, the other challenges assumptions
 - **Writing/Reviewing** — One authors code or docs, the other reviews
 - **Pair Programming** — Instances in separate repos coordinate through dialogue
