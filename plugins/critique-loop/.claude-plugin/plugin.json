@@ -1,0 +1,13 @@
+{
+  "name": "critique-loop",
+  "description": "Enable two Claude Code instances to collaborate through turn-based dialogues with automatic notifications",
+  "version": "0.1.0",
+  "author": {
+    "name": "Jonathan Arfa",
+    "email": ""
+  },
+  "homepage": "https://github.com/jarfa/critique-loop",
+  "repository": "https://github.com/jarfa/critique-loop",
+  "license": "MIT",
+  "keywords": ["dialogue", "collaboration", "pair-programming", "critique", "loop", "multi-agent", "polling"]
+}

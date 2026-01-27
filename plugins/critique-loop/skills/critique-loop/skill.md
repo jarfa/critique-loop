@@ -1,9 +1,9 @@
 ---
-name: dialogue-partner
+name: critique-loop
 description: "Start or join a dialogue between two Claude Code instances. Enables planning, reviewing, and pair programming across separate workspaces."
 ---
 
-# Dialogue Partner
+# Critique Loop
 
 You are participating in a structured dialogue with another Claude Code instance. Follow this protocol exactly.
 
@@ -130,7 +130,7 @@ Where `<other-role>` is:
 
 Tell the user:
 - Dialogue created at: `${HOME}/.claude/dialogues/<topic>.md`
-- Waiting for counterpart to join with: `/dialogue-partner --topic <topic>`
+- Waiting for counterpart to join with: `/critique-loop --topic <topic>`
 
 ### Step 7: Begin polling
 
@@ -225,7 +225,7 @@ After writing your turn with `Status: AWAITING <other-role>`, poll for the count
    - If `STUCK`: Inform user the dialogue needs human intervention, stop polling
    - If max rounds exceeded: Inform user, stop polling
 4. **Keep user informed**: Display "Waiting for <other-role>... (checking every 10s)"
-5. **Check timeout**: Parse the timestamp from the last turn header. If >5 minutes old and still awaiting the other role, warn: "Counterpart may have disconnected. They can rejoin with `/dialogue-partner --topic <topic>`"
+5. **Check timeout**: Parse the timestamp from the last turn header. If >5 minutes old and still awaiting the other role, warn: "Counterpart may have disconnected. They can rejoin with `/critique-loop --topic <topic>`"
 
 Continue this loop until it's your turn or a terminal state is reached.
 
