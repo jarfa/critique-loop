@@ -1,77 +1,62 @@
 ---
 name: critique-loop
-description: "Start or join a dialogue between two Claude Code instances. Enables planning, reviewing, and pair programming across separate workspaces."
+description: "Start a dialogue with a spawned partner. Enables planning, reviewing, and pair programming with automated turn-taking."
 ---
 
 # Critique Loop
 
-You are participating in a structured dialogue with another Claude Code instance. Follow this protocol exactly.
+You orchestrate a structured dialogue with a spawned partner. Follow this protocol exactly.
 
 ## Parse Arguments
 
 Extract from the invocation:
 - `--topic <topic>` (REQUIRED): The dialogue identifier
-- `--role <role>`: Your role name
 - `--template <template>`: Predefined role pair (`planning`, `review`, or `pair`)
-- `--max-rounds <N>`: Maximum rounds (default: 20)
+- `--role1 <role>` + `--role2 <role>`: Custom role names (both required if not using template)
+- `--max-rounds <N>`: Maximum rounds (default: 20, or template default)
 
 **Validation:**
 - `--topic` is required. If missing, ask the user for it.
-- Either `--role` OR `--template` must be provided (not both, not neither)
+- Must provide EITHER `--template` OR BOTH `--role1` and `--role2`
+- If validation fails, explain the requirement and ask for correct arguments
+
+## Templates
+
+If `--template` was provided, use these role pairs:
+
+| Template | Your Role | Partner Role | Max Rounds |
+|----------|-----------|--------------|------------|
+| `planning` | proposer | critic | 20 |
+| `review` | author | reviewer | 20 |
+| `pair` | lead | partner | 30 |
+
+If using custom roles: You take `--role1`, partner takes `--role2`.
 
 ## Configuration
 
 ```
 DIALOGUE_DIR="${DIALOGUE_DIR:-$HOME/.claude/dialogues}"
 DIALOGUE_FILE="${DIALOGUE_DIR}/<topic>.md"
+INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
 ```
-
-## Determine Mode
-
-Check the dialogue file to determine your mode:
-
-| Condition | Mode |
-|-----------|------|
-| Dialogue file doesn't exist | **Start** — You create the dialogue |
-| Dialogue file exists, your role is NOT in Participants | **Join** — You join an existing dialogue |
-| Dialogue file exists, your role IS in Participants | **Resume** — You're rejoining |
-
-**How to check:** Read the dialogue file's Participants section. If your role name appears there, you're resuming. If not (but file exists), you're joining.
-
-## Templates
-
-If `--template` was provided, use these role pairs:
-
-| Template | First Role | Second Role | Max Rounds |
-|----------|------------|-------------|------------|
-| `planning` | proposer | critic | 20 |
-| `review` | author | reviewer | 20 |
-| `pair` | lead | partner | 30 |
-
-- **If Starting:** Take the "First Role"
-- **If Joining:** Take the "Second Role" (auto-assigned from file header)
-
-### Role Guidance
-
-**planning → proposer:** Drive discussion forward. Make concrete proposals. Incorporate valid critiques into revised proposals. Push back on critiques that are based on misunderstanding or that you disagree with — explain your reasoning.
-
-**planning → critic:** Challenge assumptions. Identify gaps, risks, and edge cases. Acknowledge when concerns are addressed.
-
-**review → author:** Present work clearly. Respond to feedback — accept, push back with reasoning, or ask for clarification.
-
-**review → reviewer:** Be specific and actionable. Distinguish blocking issues from suggestions. Approve when standards are met.
-
-**pair → lead:** Set direction, make decisions when stuck, keep progress moving.
-
-**pair → partner:** Raise concerns, suggest alternatives, sanity-check decisions.
 
 ---
 
-## Mode: Start (Create New Dialogue)
+## Phase 1: Setup
 
-You are creating a new dialogue. Follow these steps:
+### Step 1: Gather context
 
-### Step 1: Create directories
+Ask the user: "What would you like to discuss or accomplish in this dialogue?"
+
+Wait for their response. This becomes the focus of your opening turn.
+
+### Step 2: Offer to compact
+
+Tell the user: "This dialogue may consume significant context. Would you like to /compact before we begin?"
+
+Wait for their response. If they want to compact, wait for them to do so before continuing.
+
+### Step 3: Create directories
 
 Use Bash to create the dialogues directory:
 
@@ -81,18 +66,15 @@ mkdir -p "${HOME}/.claude/dialogues"
 
 This is the ONLY bash command needed during setup.
 
-### Step 2: Determine your role
+### Step 4: Determine roles
 
-- If `--template` provided: Use the **first role** from the template table above
-- If `--role` provided: Use that role name
+- If `--template` provided: Use roles from template table
+- If `--role1`/`--role2` provided: Use those role names
 
-### Step 3: Gather context
+Your role = first role (from template or `--role1`)
+Partner role = second role (from template or `--role2`)
 
-Ask the user: "What would you like to discuss or accomplish in this dialogue?"
-
-Wait for their response. Include their answer as the focus of your opening turn.
-
-### Step 4: Create the dialogue file
+### Step 5: Create the dialogue file
 
 Use the **Write tool** to create `${HOME}/.claude/dialogues/<topic>.md`:
 
@@ -105,12 +87,15 @@ Max rounds: <max-rounds>
 
 Participants:
   - <your-role> @ <your current working directory>
+  - <partner-role> (partner)
 
 ---
 
 ```
 
-### Step 5: Write your opening turn
+Note: Both participants are listed upfront. The partner is marked with "(partner)".
+
+### Step 6: Write your opening turn
 
 Use the **Edit tool** to append your first message to the dialogue file:
 
@@ -119,218 +104,147 @@ Use the **Edit tool** to append your first message to the dialogue file:
 
 <Your opening message based on the user's context>
 
-Status: AWAITING <other-role>
+Status: AWAITING <partner-role>
 ```
 
-Where `<other-role>` is:
-- If template: the second role from template table
-- If custom role: ask the user what the other role name will be
+### Step 7: Inform user and proceed
 
-### Step 6: Inform the user
+Tell the user: "Starting dialogue as <your-role>. Spawning <partner-role> partner..."
 
-Tell the user:
-- Dialogue created at: `${HOME}/.claude/dialogues/<topic>.md`
-- Waiting for counterpart to join with: `/critique-loop --topic <topic>`
-
-### Step 7: Begin polling
-
-Now enter the polling loop (see "Waiting for Response" below).
+Now proceed to Phase 2: Dialogue Loop.
 
 ---
 
-## Mode: Join (Join Existing Dialogue)
+## Phase 2: Dialogue Loop
 
-An existing dialogue was found. You are joining it.
+This is the main orchestration loop. You spawn the partner, they respond, you respond, repeat.
 
-### Step 1: Read the dialogue file
+### Initial Spawn
 
-Use the **Read tool** to read `${HOME}/.claude/dialogues/<topic>.md` and understand:
-- The topic and context
-- Who the other participant is
-- What template is being used (if any)
-- What has been said so far
+Spawn the partner using the **Task tool** with these parameters:
+- `subagent_type`: `"general-purpose"`
+- `description`: `"Dialogue partner: <partner-role>"`
+- `prompt`: A neutral prompt (see below)
 
-### Step 2: Determine your role
+**Neutral prompt template:**
+```
+You are participating in a dialogue as the <partner-role> role.
 
-- If the file has a `Template:` line, take the **second role** from that template
-- If `--role` was provided, use that role (verify it's not already taken)
-- The role must NOT already be in the Participants list
+Instructions file: <path-to-plugin>/dialogue-partner-instructions.md
+Dialogue file: ${HOME}/.claude/dialogues/<topic>.md
 
-### Step 3: Update the dialogue file header
-
-Use the **Edit tool** to add yourself to the Participants section:
-
-```markdown
-Participants:
-  - <existing-role> @ <their-directory>
-  - <your-role> @ <your current working directory>
+Read the instructions file first, then read the dialogue file to understand the conversation. Write your response following the protocol in the instructions.
 ```
 
-### Step 4: Write your response
+**Important:** Do NOT summarize the dialogue content or frame the discussion. Let the partner read and interpret the file themselves.
 
-Use the **Edit tool** to append your turn to the dialogue file:
+Save the agent ID returned by the Task tool — you will use it to resume the partner.
+
+### Loop Logic
+
+After the partner returns, read the dialogue file and check the latest `Status:` line:
+
+| Status | Action |
+|--------|--------|
+| `AWAITING <your-role>` | Write your turn, then resume partner |
+| `AWAITING <partner-role>` | Something went wrong — partner should have written AWAITING you. Read file and debug. |
+| `PROPOSING_DONE` | Other party wants to conclude. Evaluate and either confirm (write summary + DONE) or dispute (explain + AWAITING). Then resume partner if not DONE. |
+| `DONE` | Dialogue complete. Go to Phase 3. |
+| `STUCK` | Partner is stuck. Go to STUCK Handling below. |
+
+### Writing Your Turn
+
+When it's your turn, use the **Edit tool** to append:
 
 ```markdown
 ---
 
 ## [<your-role>] Round N — <YYYY-MM-DD HH:MM>
 
-<Your response to the dialogue>
-
-Status: AWAITING <other-role>
-```
-
-The round number should match the current round from the dialogue.
-
-### Step 5: Begin polling
-
-Now enter the polling loop (see "Waiting for Response" below).
-
----
-
-## Mode: Resume (Rejoin Existing Dialogue)
-
-You were previously part of this dialogue and are rejoining (perhaps after a restart).
-
-### Step 1: Read recent dialogue
-
-Use the **Read tool** to read the dialogue file. Focus on the last few turns to understand current state.
-
-### Step 2: Check current status
-
-Parse the latest `Status:` line:
-- If `AWAITING <your-role>`: It's your turn. Write your response.
-- If `AWAITING <other-role>`: Enter polling loop.
-- If `DONE` or `STUCK`: Inform user the dialogue has ended.
-
-Also check if max rounds was exceeded (compare last turn's round number against `Max rounds:` in header). If so, inform user the dialogue was paused at max rounds.
-
-### Step 3: Continue or wait
-
-If it's your turn, write your response following the Protocol Rules below, then enter the polling loop.
-If not, enter the polling loop immediately.
-
----
-
-## Waiting for Response (Polling Loop)
-
-After writing your turn with `Status: AWAITING <other-role>`, poll for the counterpart's response:
-
-1. **Wait**: Pause for 10 seconds
-2. **Read**: Use the **Read tool** to read the dialogue file
-3. **Check status**: Parse the latest `Status:` line:
-   - If `AWAITING <your-role>`: It's your turn — respond following Protocol Rules
-   - If `AWAITING <other-role>`: Go back to step 1
-   - If `DONE`: Extract the summary from the final turn, display it to the user, stop polling
-   - If `STUCK`: Inform user the dialogue needs human intervention, stop polling
-   - If max rounds exceeded: Inform user, stop polling
-4. **Keep user informed**: Display "Waiting for <other-role>... (checking every 10s)"
-5. **Check timeout**: Parse the timestamp from the last turn header. If >5 minutes old and still awaiting the other role, warn: "Counterpart may have disconnected. They can rejoin with `/critique-loop --topic <topic>`"
-
-Continue this loop until it's your turn or a terminal state is reached.
-
-### On Dialogue Completion
-
-When you detect `Status: DONE` (whether you wrote it or the counterpart did):
-
-1. Locate the final turn in the dialogue file
-2. Extract the summary (the content before `Status: DONE`)
-3. Report to your user: "Dialogue concluded. Here's the summary: <summary>"
-
-Both participants must report the same summary from the shared file.
-
----
-
-## Protocol Rules
-
-**ALWAYS follow these rules when participating in a dialogue:**
-
-### Rule 1: Append Only
-
-NEVER edit previous turns. Only append new content to the dialogue file.
-
-### Rule 2: Turn Format
-
-Every turn MUST follow this format:
-
-```markdown
----
-
-## [<role>] Round N — YYYY-MM-DD HH:MM
-
-<Your message content>
+<Your message>
 
 Status: <STATUS>
 ```
 
-### Rule 3: Status is ALWAYS Last
+**Round tracking:** Increment round when both parties have spoken.
 
-The `Status:` line MUST be the final line of your turn. No exceptions.
+### Resuming the Partner
 
-### Rule 4: Valid Status Values
+After writing your turn, resume the partner using the **Task tool** with:
+- `resume`: The agent ID from initial spawn
+- `prompt`: `"Continue the dialogue. Read the file for the latest turn and respond."`
 
-| Status | When to Use |
-|--------|-------------|
-| `AWAITING <other-role>` | Normal turn - waiting for counterpart |
-| `PROPOSING_DONE` | You believe the dialogue can conclude |
-| `DONE` | Confirming conclusion (include summary first) |
-| `STUCK` | Escalating to human (explain blocker first) |
+### Max Rounds Check
 
-### Rule 5: Concluding a Dialogue
+Before resuming the partner, check if the current round equals `Max rounds` from the file header.
 
-To conclude:
-1. Set `Status: PROPOSING_DONE`
-2. Counterpart either:
-   - **Confirms:** Writes summary, then `Status: DONE`
-   - **Rejects:** Explains why not done, continues with `Status: AWAITING <role>`
+If max rounds reached:
+1. Tell user: "Reached <N> rounds without conclusion. See full context at <file path>."
+2. Ask: "Continue for another 10 rounds?"
+3. If yes: Update your internal max rounds tracking, continue loop
+4. If no: End dialogue, remind user of file location
 
-Example confirmation:
-```markdown
+### STUCK Handling
+
+If you detect `Status: STUCK` (from either party):
+
+1. Read the turn to understand the blocker
+2. Tell user: "The dialogue is stuck. <blocker explanation>. See full context at <file path>."
+3. Ask: "How would you like to proceed?"
+4. Wait for user guidance
+5. Write your next turn incorporating the user's guidance (you are acting as the user's representative)
+6. Resume partner with the agent ID
+
+### PROPOSING_DONE Handling
+
+If partner wrote `PROPOSING_DONE`:
+- Evaluate whether the dialogue is truly complete
+- If complete: Write summary + `Status: DONE`, proceed to Phase 3
+- If not complete: Explain what's missing + `Status: AWAITING <partner-role>`, resume partner
+
+If YOU want to propose completion:
+- Write `Status: PROPOSING_DONE`
+- Resume partner
+- Partner will either confirm (DONE) or dispute (AWAITING you)
+
 ---
 
-## [critic] Round 5 — 2026-01-25 15:00
+## Phase 3: Conclusion
 
-Agreed. We've addressed all concerns.
+When the dialogue reaches `Status: DONE`:
 
-Summary: We decided to use REST with cursor-based pagination. Error responses follow RFC 7807. JWT auth with 1-hour expiry.
+1. Read the final turn from the dialogue file
+2. Extract the summary (the content before `Status: DONE`)
+3. Report to user: "Dialogue concluded after <N> rounds. Summary: <summary>"
+4. Remind user: "Full transcript at <file path>"
 
-Status: DONE
-```
-
-Example rejection:
-```markdown
 ---
 
-## [critic] Round 5 — 2026-01-25 15:00
+## Role Guidance
 
-I don't think we're done yet — we haven't addressed the rate limiting strategy.
+Follow this guidance based on your role:
 
-Let me propose: 100 requests per minute per API key, with exponential backoff guidance in 429 responses.
+**proposer (planning):** Drive discussion forward. Make concrete proposals. Incorporate valid critiques into revised proposals. Push back on critiques that are based on misunderstanding or that you disagree with — explain your reasoning.
 
-Status: AWAITING proposer
-```
+**critic (planning):** Challenge assumptions. Identify gaps, risks, and edge cases. Acknowledge when concerns are addressed. Don't be contrarian for its own sake.
 
-### Rule 6: Escalating to Human
+**author (review):** Present work clearly. Respond to feedback — accept, push back with reasoning, or ask for clarification.
 
-When stuck:
-```markdown
+**reviewer (review):** Be specific and actionable. Distinguish blocking issues from suggestions. Approve when standards are met.
+
+**lead (pair):** Set direction, make decisions when stuck, keep progress moving.
+
+**partner (pair):** Raise concerns, suggest alternatives, sanity-check decisions.
+
+For custom roles: Use the role name as guidance for your perspective. Be a genuine collaborator.
+
 ---
 
-## [<role>] Round N — YYYY-MM-DD HH:MM
+## Protocol Rules Reference
 
-We are stuck because <explanation of the blocker>.
+These rules apply to all turns you write:
 
-Status: STUCK
-```
-
-### Rule 7: Round Tracking
-
-Increment the round number when BOTH parties have spoken. If you're the second to speak in a round, the next turn starts a new round.
-
-Determine the current round by counting turn pairs in the dialogue, or by parsing the last `## [role] Round N` header.
-
-### Rule 8: Use Edit Tool for File Writes
-
-ALWAYS use the **Edit tool** to append turns to the dialogue file. Do NOT use bash commands (echo, cat, etc.) for writing to the dialogue file.
-
-The only Bash command in this entire skill should be `mkdir -p` at setup. Everything else uses Read, Edit, or Write tools.
+1. **Append only** — Never edit previous turns
+2. **Status is always last** — Final line of each turn must be `Status: <value>`
+3. **Use Edit tool** — All dialogue file writes use Edit, not Bash commands
+4. **Round tracking** — Increment round when both parties have spoken
