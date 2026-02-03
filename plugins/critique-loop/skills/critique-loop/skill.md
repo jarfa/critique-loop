@@ -1,4 +1,4 @@
----
+t---
 name: critique-loop
 description: "Start a dialogue with a spawned partner. Enables planning, reviewing, and pair programming with automated turn-taking."
 ---
@@ -13,7 +13,7 @@ Extract from the invocation:
 - `--topic <topic>` (REQUIRED): The dialogue identifier
 - `--template <template>`: Predefined role pair (`planning`, `review`, or `pair`)
 - `--role1 <role>` + `--role2 <role>`: Custom role names (both required if not using template)
-- `--max-rounds <N>`: Maximum rounds (default: 20, or template default)
+- `--max-rounds <N>`: Maximum rounds (default: 5, or template default)
 
 **Validation:**
 - `--topic` is required. If missing, ask the user for it.
@@ -26,9 +26,9 @@ If `--template` was provided, use these role pairs:
 
 | Template | Your Role | Partner Role | Max Rounds |
 |----------|-----------|--------------|------------|
-| `planning` | proposer | critic | 20 |
-| `review` | author | reviewer | 20 |
-| `pair` | lead | partner | 30 |
+| `planning` | proposer | critic | 5 |
+| `review` | author | reviewer | 5 |
+| `pair` | lead | partner | 7 |
 
 If using custom roles: You take `--role1`, partner takes `--role2`.
 

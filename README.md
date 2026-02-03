@@ -50,7 +50,7 @@ The dialogue runs automatically. You'll see status updates and the final summary
 | `--topic <topic>` | Yes | Dialogue identifier |
 | `--template <template>` | Either this... | Predefined role pair |
 | `--role1 <role>` + `--role2 <role>` | ...or both of these | Custom role names |
-| `--max-rounds <N>` | No | Maximum rounds (default: 20) |
+| `--max-rounds <N>` | No | Maximum rounds (default: 5) |
 
 ## Templates
 
