@@ -35,7 +35,7 @@ If using custom roles: You take `--role1`, partner takes `--role2`.
 ## Configuration
 
 ```
-DIALOGUE_DIR="${DIALOGUE_DIR:-$HOME/.claude/dialogues}"
+DIALOGUE_DIR="${DIALOGUE_DIR:-.dialogues}"
 DIALOGUE_FILE="${DIALOGUE_DIR}/<topic>.md"
 INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
 ```
@@ -48,25 +48,15 @@ INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
 
 Ask the user: "What would you like to discuss or accomplish in this dialogue?"
 
-Wait for their response. This becomes the focus of your opening turn.
+Wait for their response. This becomes the user context passed to Subagent A.
 
-### Step 2: Offer to compact
+### Step 2: Check gitignore
 
-Tell the user: "This dialogue may consume significant context. Would you like to /compact before we begin?"
+Check if `.dialogues/` is in the project's `.gitignore`. If not, ask the user: "Would you like me to add `.dialogues/` to your .gitignore? Dialogue files are typically not committed."
 
-Wait for their response. If they want to compact, wait for them to do so before continuing.
+If yes, append `.dialogues/` to `.gitignore` (create the file if it doesn't exist).
 
-### Step 3: Create directories
-
-Use Bash to create the dialogues directory:
-
-```bash
-mkdir -p "${HOME}/.claude/dialogues"
-```
-
-This is the ONLY bash command needed during setup.
-
-### Step 4: Determine roles
+### Step 3: Determine roles
 
 - If `--template` provided: Use roles from template table
 - If `--role1`/`--role2` provided: Use those role names
@@ -74,9 +64,9 @@ This is the ONLY bash command needed during setup.
 Your role = first role (from template or `--role1`)
 Partner role = second role (from template or `--role2`)
 
-### Step 5: Create the dialogue file
+### Step 4: Create the dialogue file
 
-Use the **Write tool** to create `${HOME}/.claude/dialogues/<topic>.md`:
+Use the **Write tool** to create `.dialogues/<topic>.md` (the Write tool will create the `.dialogues/` directory automatically):
 
 ```markdown
 # Dialogue: <topic>
@@ -93,23 +83,11 @@ Participants:
 
 ```
 
-Note: Both participants are listed upfront. The partner is marked with "(partner)".
+Note: Both participants are listed upfront. Do NOT write any dialogue turns — the subagents will do that.
 
-### Step 6: Write your opening turn
+### Step 5: Inform user and proceed
 
-Use the **Edit tool** to append your first message to the dialogue file:
-
-```markdown
-## [<your-role>] Round 1 — <YYYY-MM-DD HH:MM>
-
-<Your opening message based on the user's context>
-
-Status: AWAITING <partner-role>
-```
-
-### Step 7: Inform user and proceed
-
-Tell the user: "Starting dialogue as <your-role>. Spawning <partner-role> partner..."
+Tell the user: "Starting dialogue. Spawning <your-role> and <partner-role>..."
 
 Now proceed to Phase 2: Dialogue Loop.
 
@@ -117,66 +95,81 @@ Now proceed to Phase 2: Dialogue Loop.
 
 ## Phase 2: Dialogue Loop
 
-This is the main orchestration loop. You spawn the partner, they respond, you respond, repeat.
+You coordinate two subagents. You do NOT write dialogue turns yourself — all writes happen in subagents where output is hidden from the user.
 
-### Initial Spawn
+### Quiet Operation
 
-Spawn the partner using the **Task tool** with these parameters:
+During the dialogue loop, minimize terminal output. Only output to the user when:
+- The dialogue concludes (Phase 3)
+- The dialogue is STUCK (requires user input)
+- Max rounds reached (requires user input)
+
+Brief progress indicators are acceptable: "Round 2..." but no verbose status updates.
+
+### Spawn Subagent A (your role)
+
+Spawn the first subagent (your role) using the **Task tool** with these parameters:
 - `subagent_type`: `"general-purpose"`
-- `description`: `"Dialogue partner: <partner-role>"`
-- `prompt`: A neutral prompt (see below)
+- `description`: `"Dialogue: <your-role>"`
+- `prompt`:
+  ```
+  You are the <your-role> in a dialogue.
 
-**Neutral prompt template:**
-```
-You are participating in a dialogue as the <partner-role> role.
+  User's goal: <user context from Phase 1 Step 1>
 
-Instructions file: <path-to-plugin>/dialogue-partner-instructions.md
-Dialogue file: ${HOME}/.claude/dialogues/<topic>.md
+  Instructions: <path-to-plugin>/dialogue-partner-instructions.md
+  Dialogue file: .dialogues/<topic>.md
 
-Read the instructions file first, then read the dialogue file to understand the conversation. Write your response following the protocol in the instructions.
-```
+  Read the instructions file first, then read the dialogue file. Write your opening turn (Round 1) proposing/presenting based on the user's goal.
+  ```
 
-**Important:** Do NOT summarize the dialogue content or frame the discussion. Let the partner read and interpret the file themselves.
+Save the agent ID as `AGENT_A_ID`.
 
-Save the agent ID returned by the Task tool — you will use it to resume the partner.
+### Spawn Subagent B (partner role)
+
+After Subagent A returns, spawn the second subagent (partner role) using the **Task tool** with:
+- `subagent_type`: `"general-purpose"`
+- `description`: `"Dialogue: <partner-role>"`
+- `prompt`:
+  ```
+  You are the <partner-role> in a dialogue.
+
+  Instructions: <path-to-plugin>/dialogue-partner-instructions.md
+  Dialogue file: .dialogues/<topic>.md
+
+  Read the instructions file first, then read the dialogue file to understand the conversation. Write your response following the protocol.
+  ```
+
+**Important:** Do NOT pass the user's goal to Subagent B. Let them read and interpret the file themselves for an unbiased perspective.
+
+Save the agent ID as `AGENT_B_ID`.
 
 ### Loop Logic
 
-After the partner returns, read the dialogue file and check the latest `Status:` line:
+After each subagent returns, check status efficiently:
+```bash
+tail -5 .dialogues/<topic>.md | grep "^Status:"
+```
+
+Act based on the status:
 
 | Status | Action |
 |--------|--------|
-| `AWAITING <your-role>` | Write your turn, then resume partner |
-| `AWAITING <partner-role>` | Something went wrong — partner should have written AWAITING you. Read file and debug. |
-| `PROPOSING_DONE` | Other party wants to conclude. Evaluate and either confirm (write summary + DONE) or dispute (explain + AWAITING). Then resume partner if not DONE. |
-| `DONE` | Dialogue complete. Go to Phase 3. |
-| `STUCK` | Partner is stuck. Go to STUCK Handling below. |
+| `AWAITING <your-role>` | Resume Subagent A |
+| `AWAITING <partner-role>` | Resume Subagent B |
+| `PROPOSING_DONE` | Resume the OTHER subagent to confirm/dispute |
+| `DONE` | Go to Phase 3 |
+| `STUCK` | Go to STUCK Handling below |
 
-### Writing Your Turn
+### Resuming Subagents
 
-When it's your turn, use the **Edit tool** to append:
-
-```markdown
----
-
-## [<your-role>] Round N — <YYYY-MM-DD HH:MM>
-
-<Your message>
-
-Status: <STATUS>
-```
-
-**Round tracking:** Increment round when both parties have spoken.
-
-### Resuming the Partner
-
-After writing your turn, resume the partner using the **Task tool** with:
-- `resume`: The agent ID from initial spawn
+Resume a subagent using the **Task tool** with:
+- `resume`: The agent ID (`AGENT_A_ID` or `AGENT_B_ID`)
 - `prompt`: `"Continue the dialogue. Read the file for the latest turn and respond."`
 
 ### Max Rounds Check
 
-Before resuming the partner, check if the current round equals `Max rounds` from the file header.
+Before resuming a subagent, check if the current round equals `Max rounds` from the file header.
 
 If max rounds reached:
 1. Tell user: "Reached <N> rounds without conclusion. See full context at <file path>."
@@ -186,26 +179,15 @@ If max rounds reached:
 
 ### STUCK Handling
 
-If you detect `Status: STUCK` (from either party):
+If you detect `Status: STUCK`:
 
 1. Read the turn to understand the blocker
 2. Tell user: "The dialogue is stuck. <blocker explanation>. See full context at <file path>."
 3. Ask: "How would you like to proceed?"
 4. Wait for user guidance
-5. Write your next turn incorporating the user's guidance (you are acting as the user's representative)
-6. Resume partner with the agent ID
-
-### PROPOSING_DONE Handling
-
-If partner wrote `PROPOSING_DONE`:
-- Evaluate whether the dialogue is truly complete
-- If complete: Write summary + `Status: DONE`, proceed to Phase 3
-- If not complete: Explain what's missing + `Status: AWAITING <partner-role>`, resume partner
-
-If YOU want to propose completion:
-- Write `Status: PROPOSING_DONE`
-- Resume partner
-- Partner will either confirm (DONE) or dispute (AWAITING you)
+5. Resume the appropriate subagent with guidance:
+   - `resume`: The agent ID for the role that should respond next
+   - `prompt`: `"User provided guidance: <guidance>. Continue the dialogue incorporating this."`
 
 ---
 
@@ -242,9 +224,10 @@ For custom roles: Use the role name as guidance for your perspective. Be a genui
 
 ## Protocol Rules Reference
 
-These rules apply to all turns you write:
+These rules apply to all dialogue turns (written by subagents, not the orchestrator):
 
 1. **Append only** — Never edit previous turns
 2. **Status is always last** — Final line of each turn must be `Status: <value>`
-3. **Use Edit tool** — All dialogue file writes use Edit, not Bash commands
+3. **Use Write tool** — All dialogue file writes use Write (read, append, write back)
 4. **Round tracking** — Increment round when both parties have spoken
+5. **Orchestrator doesn't write turns** — Only creates header and coordinates subagents

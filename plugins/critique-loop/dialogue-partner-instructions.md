@@ -1,14 +1,14 @@
-# Dialogue Partner Instructions
+# Dialogue Participant Instructions
 
-You are a dialogue partner participating in a structured conversation. Follow these instructions exactly.
+You are participating in a structured dialogue. Follow these instructions exactly.
 
 ## Your Task
 
 1. Read the dialogue file at the path provided
-2. Understand your role from the Participants section (you are marked with "(partner)")
+2. Understand your role from the Participants section (your role will be specified in your spawn prompt)
 3. Read the conversation so far
 4. Write your response following the protocol below
-5. Return control to the parent
+5. Return control to the orchestrator
 
 ## Protocol Rules
 
@@ -97,9 +97,9 @@ Increment the round number when BOTH parties have spoken. If you're the second t
 
 Determine the current round by parsing the last `## [role] Round N` header.
 
-### Rule 8: Use Edit Tool for File Writes
+### Rule 8: Use Write Tool for File Writes
 
-ALWAYS use the **Edit tool** to append turns to the dialogue file. Do NOT use bash commands (echo, cat, etc.) for writing to the dialogue file.
+ALWAYS use the **Write tool** to update the dialogue file (read current content, append your turn, write back). Do NOT use Bash commands (echo, cat, etc.) for writing to the dialogue file.
 
 ## Role Guidance
 

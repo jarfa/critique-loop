@@ -73,7 +73,7 @@ The dialogue runs automatically. You'll see status updates and the final summary
 
 | Environment Variable | Default | Purpose |
 |---------------------|---------|---------|
-| `DIALOGUE_DIR` | `~/.claude/dialogues` | Where dialogue files are stored |
+| `DIALOGUE_DIR` | `.dialogues` | Where dialogue files are stored (project-local) |
 
 ## Future Improvements
 
