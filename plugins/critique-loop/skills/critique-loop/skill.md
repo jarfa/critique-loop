@@ -32,6 +32,8 @@ If `--template` was provided, use these role pairs:
 
 If using custom roles: You take `--role1`, partner takes `--role2`.
 
+**Note:** When using custom roles, avoid role names that are substrings of each other (e.g., don't use 'lead' and 'team-lead' in the same dialogue).
+
 ## Configuration
 
 ```
@@ -123,7 +125,7 @@ Spawn the first subagent (your role) using the **Task tool** with these paramete
   Read the instructions file first, then read the dialogue file. Write your opening turn (Round 1) proposing/presenting based on the user's goal.
   ```
 
-Save the agent ID as `AGENT_A_ID`.
+Remember this agent ID for resumption in the loop.
 
 ### Spawn Subagent B (partner role)
 
@@ -142,14 +144,27 @@ After Subagent A returns, spawn the second subagent (partner role) using the **T
 
 **Important:** Do NOT pass the user's goal to Subagent B. Let them read and interpret the file themselves for an unbiased perspective.
 
-Save the agent ID as `AGENT_B_ID`.
+Remember this agent ID for resumption in the loop.
+
+### Write Validation
+
+Before each spawn/resume:
+1. Store current status: `PREV_STATUS=$(tail -1 .dialogues/<topic>.md)`
+
+After subagent returns:
+2. Get new status: `NEW_STATUS=$(tail -1 .dialogues/<topic>.md)`
+3. If `PREV_STATUS == NEW_STATUS`: subagent didn't write → go to Error Handling
 
 ### Loop Logic
 
-After each subagent returns, check status efficiently:
+After each subagent returns, check status:
 ```bash
-tail -5 .dialogues/<topic>.md | grep "^Status:"
+tail -1 .dialogues/<topic>.md
 ```
+
+If the status line doesn't match a known value (`AWAITING <role>`, `PROPOSING_DONE`, `DONE`, `STUCK`):
+- Treat as `STUCK`
+- Report to user: "Unrecognized status: '<value>'. Please review the dialogue file at <path>."
 
 Act based on the status:
 
@@ -189,6 +204,16 @@ If you detect `Status: STUCK`:
    - `resume`: The agent ID for the role that should respond next
    - `prompt`: `"User provided guidance: <guidance>. Continue the dialogue incorporating this."`
 
+### Error Handling
+
+**Task tool failure:** If the Task tool returns an error when spawning or resuming:
+- Report to user: "Subagent failed: <error>. How would you like to proceed?"
+- Options: retry, end dialogue, or provide guidance
+
+**Status unchanged:** If subagent returns but status is unchanged:
+- Report to user: "Subagent returned but didn't write a turn. How would you like to proceed?"
+- Options: retry spawn, end dialogue, or provide guidance
+
 ---
 
 ## Phase 3: Conclusion
@@ -204,21 +229,7 @@ When the dialogue reaches `Status: DONE`:
 
 ## Role Guidance
 
-Follow this guidance based on your role:
-
-**proposer (planning):** Drive discussion forward. Make concrete proposals. Incorporate valid critiques into revised proposals. Push back on critiques that are based on misunderstanding or that you disagree with — explain your reasoning.
-
-**critic (planning):** Challenge assumptions. Identify gaps, risks, and edge cases. Acknowledge when concerns are addressed. Don't be contrarian for its own sake.
-
-**author (review):** Present work clearly. Respond to feedback — accept, push back with reasoning, or ask for clarification.
-
-**reviewer (review):** Be specific and actionable. Distinguish blocking issues from suggestions. Approve when standards are met.
-
-**lead (pair):** Set direction, make decisions when stuck, keep progress moving.
-
-**partner (pair):** Raise concerns, suggest alternatives, sanity-check decisions.
-
-For custom roles: Use the role name as guidance for your perspective. Be a genuine collaborator.
+See `dialogue-partner-instructions.md` for role-specific guidance.
 
 ---
 
