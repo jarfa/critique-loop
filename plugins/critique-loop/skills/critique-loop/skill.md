@@ -50,7 +50,12 @@ INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
 
 Ask the user: "What would you like to discuss or accomplish in this dialogue?"
 
-Wait for their response. This becomes the user context passed to Subagent A.
+Wait for their response. Before proceeding:
+- If the user references prior conversation ("the idea we discussed", "that feature", etc.), expand it into a self-contained description using your conversation history
+- Include relevant background: problem context, constraints, decisions already made
+- The goal is for Subagent A to understand the task without access to your conversation history
+
+This expanded context becomes the user context passed to Subagent A.
 
 ### Step 2: Check gitignore
 
@@ -117,12 +122,13 @@ Spawn the first subagent (your role) using the **Task tool** with these paramete
   ```
   You are the <your-role> in a dialogue.
 
-  User's goal: <user context from Phase 1 Step 1>
+  ## Context
+  <expanded context from Phase 1 Step 1>
 
   Instructions: <path-to-plugin>/dialogue-partner-instructions.md
   Dialogue file: .dialogues/<topic>.md
 
-  Read the instructions file first, then read the dialogue file. Write your opening turn (Round 1) proposing/presenting based on the user's goal.
+  Read the instructions file first, then read the dialogue file. Write your opening turn (Round 1) proposing/presenting based on the context above.
   ```
 
 Remember this agent ID for resumption in the loop.
