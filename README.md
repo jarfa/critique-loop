@@ -1,18 +1,17 @@
 # Critique Loop
 
-A Claude Code plugin that enables two Claude Code instances to collaborate through turn-based dialogues with automatic notifications.
+A Claude Code plugin that starts a dialogue between two subagents to critique & improve your plans or code.
 
 ## Motivation
-When planning or writing code I often spin up multiple instances of Claude Code and use one to critique the other. This has radically reduced the number of errors and poor design choices that made it into plans or code before my own final review.
 
-However, it also required me to act as their intermediary and manually relay feedback back and forth between them.
+When planning or writing code I often want Claude Code to critique its own work. Previously this required manually running two instances and relaying messages between them.
 
-Hence the need for a formal skill to simplify the process and take the human (mostly) out of the loop until the machines reach a conclusion.
+This plugin automates the process: invoke once, and a two subagents are spawned to provide critique, review, or collaboration. The human stays out of the loop until the dialogue reaches a conclusion.
 
-You could use this for:  
-- **Planning/Critiquing** — One instance proposes, the other challenges assumptions
-- **Writing/Reviewing** — One authors code or docs, the other reviews
-- **Pair Programming** — Instances in separate repos coordinate through dialogue
+Use this for:
+- **Planning/Critiquing** — One agent proposes, the partner challenges assumptions
+- **Writing/Reviewing** — One agent presents code or docs, the partner reviews
+- **Pair Programming** — Collaborative problem-solving between two partners
 
 ## Installation
 
@@ -32,42 +31,53 @@ claude --plugin-dir /path/to/critique-loop
 
 ## Usage
 
-In the first claude code instance:
 ```
-/critique-loop --template planning --topic api-design
-```
-
-In the second claude code instance:
-```
-/critique-loop --topic api-design
+/critique-loop --topic api-design --template planning
 ```
 
-The second instance automatically joins as the complementary role.
+Or with custom roles:
+
+```
+/critique-loop --topic bank-heist --role1 thief --role2 getaway-driver
+```
+
+The dialogue runs automatically. You'll see status updates and the final summary when complete.
+
+## Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `--topic <topic>` | Yes | Dialogue identifier |
+| `--template <template>` | Either this... | Predefined role pair |
+| `--role1 <role>` + `--role2 <role>` | ...or both of these | Custom role names |
+| `--max-rounds <N>` | No | Maximum rounds (default: 5) |
 
 ## Templates
 
-| Template | Roles | Use case |
-|----------|-------|----------|
-| `planning` | proposer, critic | Planning sessions |
-| `review` | author, reviewer | Code/doc reviews |
-| `pair` | lead, partner | Pair programming |
+| Template | Your Role | Partner Role | Use case |
+|----------|-----------|--------------|----------|
+| `planning` | proposer | critic | Planning sessions |
+| `review` | author | reviewer | Code/doc reviews |
+| `pair` | lead | partner | Pair programming |
 
-## Roles
-The `--template` flag (shown above) simply tells each instance what their role is. If those defaults don't work for you, you can also name the roles whatever you want by skipping that flag and using `--role`. For example
-```
-/critique-loop --topic bank-heist --role thief
-```
-And for the second instance:
-```
-/critique-loop --topic bank-heist --role defense-lawyer
-```
-Note that if you're using `--role`, you have to specify it for both instances, not just the first one.
+## How It Works
+
+1. You invoke the skill with a topic and template (or custom roles)
+2. You provide context for what you want to discuss
+3. The skill creates a dialogue file and writes your opening turn
+4. Two dialogue partners are spawned to start the critique-loop
+5. Turns alternate until conclusion (DONE), intervention needed (STUCK), or max rounds reached
+6. You receive the summary and a reminder of where to find the full transcript
 
 ## Configuration
 
 | Environment Variable | Default | Purpose |
 |---------------------|---------|---------|
-| `DIALOGUE_DIR` | `~/.claude/dialogues` | Where dialogue files are stored |
+| `DIALOGUE_DIR` | `.dialogues` | Where dialogue files are stored (project-local) |
+
+## Future Improvements
+
+The dialogue file currently serves as the communication medium between parent and partner. A potential optimization: direct communication where the parent passes context in the resume prompt and the partner returns its response directly, eliminating file I/O overhead. The dialogue file would then become optional (e.g., `--log-dialogue` flag) for debugging purposes.
 
 ## License
 
