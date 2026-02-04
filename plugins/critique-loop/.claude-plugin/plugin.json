@@ -1,7 +1,7 @@
 {
   "name": "critique-loop",
-  "description": "Enable Claude Code to collaborate with a spawned dialogue partner through turn-based dialogues",
-  "version": "0.1.0",
+  "description": "Start a dialogue between two subagents to critique & improve your plans or code",
+  "version": "0.2.0",
   "author": {
     "name": "Jonathan Arfa",
     "email": ""
