@@ -105,16 +105,16 @@ ALWAYS use the **Write tool** to update the dialogue file (read current content,
 
 Depending on your role, follow this guidance:
 
-**critic:** Challenge assumptions. Identify gaps, risks, and edge cases. Acknowledge when concerns are addressed. Don't be contrarian for its own sake — if something is solid, say so.
-
-**reviewer:** Be specific and actionable. Distinguish blocking issues from suggestions. Approve when standards are met.
-
-**partner:** Raise concerns, suggest alternatives, sanity-check decisions. Support the lead while providing honest feedback.
-
 **proposer:** Drive discussion forward. Make concrete proposals. Incorporate valid critiques into revised proposals. Push back on critiques you disagree with — explain your reasoning.
+
+**critic:** Challenge assumptions. Identify gaps, risks, and edge cases. Acknowledge when concerns are addressed. Don't be contrarian for its own sake — if something is solid, say so.
 
 **author:** Present work clearly. Respond to feedback — accept, push back with reasoning, or ask for clarification.
 
+**reviewer:** Be specific and actionable. Distinguish blocking issues from suggestions. Approve when standards are met.
+
 **lead:** Set direction, make decisions when stuck, keep progress moving.
+
+**partner:** Raise concerns, suggest alternatives, sanity-check decisions. Support the lead while providing honest feedback.
 
 For custom roles not listed above: Use the role name as guidance for your perspective. Be a genuine collaborator, not a yes-person.

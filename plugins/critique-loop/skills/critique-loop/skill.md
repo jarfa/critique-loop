@@ -1,11 +1,11 @@
-t---
+---
 name: critique-loop
 description: "Start a dialogue with a spawned partner. Enables planning, reviewing, and pair programming with automated turn-taking."
 ---
 
 # Critique Loop
 
-You orchestrate a structured dialogue with a spawned partner. Follow this protocol exactly.
+You orchestrate a structured dialogue between two spawned subagents. Follow this protocol exactly.
 
 ## Parse Arguments
 
@@ -24,13 +24,13 @@ Extract from the invocation:
 
 If `--template` was provided, use these role pairs:
 
-| Template | Your Role | Partner Role | Max Rounds |
-|----------|-----------|--------------|------------|
+| Template | Role A | Role B | Max Rounds |
+|----------|--------|--------|------------|
 | `planning` | proposer | critic | 5 |
 | `review` | author | reviewer | 5 |
 | `pair` | lead | partner | 7 |
 
-If using custom roles: You take `--role1`, partner takes `--role2`.
+If using custom roles: Subagent A takes `--role1`, Subagent B takes `--role2`.
 
 **Note:** When using custom roles, avoid role names that are substrings of each other (e.g., don't use 'lead' and 'team-lead' in the same dialogue).
 
@@ -68,8 +68,8 @@ If yes, append `.dialogues/` to `.gitignore` (create the file if it doesn't exis
 - If `--template` provided: Use roles from template table
 - If `--role1`/`--role2` provided: Use those role names
 
-Your role = first role (from template or `--role1`)
-Partner role = second role (from template or `--role2`)
+Role A = first role (from template or `--role1`)
+Role B = second role (from template or `--role2`)
 
 ### Step 4: Create the dialogue file
 
@@ -83,8 +83,8 @@ Template: <template>          # Only if using a template
 Max rounds: <max-rounds>
 
 Participants:
-  - <your-role> @ <your current working directory>
-  - <partner-role> (partner)
+  - <role-a> @ <current working directory>
+  - <role-b> (subagent)
 
 ---
 
@@ -94,7 +94,7 @@ Note: Both participants are listed upfront. Do NOT write any dialogue turns — 
 
 ### Step 5: Inform user and proceed
 
-Tell the user: "Starting dialogue. Spawning <your-role> and <partner-role>..."
+Tell the user: "Starting dialogue. Spawning <role-a> and <role-b>..."
 
 Now proceed to Phase 2: Dialogue Loop.
 
@@ -113,14 +113,14 @@ During the dialogue loop, minimize terminal output. Only output to the user when
 
 Brief progress indicators are acceptable: "Round 2..." but no verbose status updates.
 
-### Spawn Subagent A (your role)
+### Spawn Subagent A (Role A)
 
-Spawn the first subagent (your role) using the **Task tool** with these parameters:
+Spawn Subagent A using the **Task tool** with these parameters:
 - `subagent_type`: `"general-purpose"`
-- `description`: `"Dialogue: <your-role>"`
+- `description`: `"Dialogue: <role-a>"`
 - `prompt`:
   ```
-  You are the <your-role> in a dialogue.
+  You are the <role-a> in a dialogue.
 
   ## Context
   <expanded context from Phase 1 Step 1>
@@ -133,14 +133,14 @@ Spawn the first subagent (your role) using the **Task tool** with these paramete
 
 Remember this agent ID for resumption in the loop.
 
-### Spawn Subagent B (partner role)
+### Spawn Subagent B (Role B)
 
-After Subagent A returns, spawn the second subagent (partner role) using the **Task tool** with:
+After Subagent A returns, spawn Subagent B using the **Task tool** with:
 - `subagent_type`: `"general-purpose"`
-- `description`: `"Dialogue: <partner-role>"`
+- `description`: `"Dialogue: <role-b>"`
 - `prompt`:
   ```
-  You are the <partner-role> in a dialogue.
+  You are the <role-b> in a dialogue.
 
   Instructions: <path-to-plugin>/dialogue-partner-instructions.md
   Dialogue file: .dialogues/<topic>.md
@@ -176,8 +176,8 @@ Act based on the status:
 
 | Status | Action |
 |--------|--------|
-| `AWAITING <your-role>` | Resume Subagent A |
-| `AWAITING <partner-role>` | Resume Subagent B |
+| `AWAITING <role-a>` | Resume Subagent A |
+| `AWAITING <role-b>` | Resume Subagent B |
 | `PROPOSING_DONE` | Resume the OTHER subagent to confirm/dispute |
 | `DONE` | Go to Phase 3 |
 | `STUCK` | Go to STUCK Handling below |
@@ -194,7 +194,7 @@ Before resuming a subagent, check if the current round equals `Max rounds` from 
 
 If max rounds reached:
 1. Tell user: "Reached <N> rounds without conclusion. See full context at <file path>."
-2. Ask: "Continue for another 10 rounds?"
+2. Ask: "Continue for another 5 rounds?"
 3. If yes: Update your internal max rounds tracking, continue loop
 4. If no: End dialogue, remind user of file location
 
@@ -226,10 +226,13 @@ If you detect `Status: STUCK`:
 
 When the dialogue reaches `Status: DONE`:
 
-1. Read the final turn from the dialogue file
-2. Extract the summary (the content before `Status: DONE`)
-3. Report to user: "Dialogue concluded after <N> rounds. Summary: <summary>"
-4. Remind user: "Full transcript at <file path>"
+1. **Validate protocol:** Check if the second-to-last turn ended with `Status: PROPOSING_DONE`
+   - If not, warn user: "Note: Dialogue ended without confirmation phase (PROPOSING_DONE was skipped)."
+   - Proceed anyway — this is a warning, not a blocking error
+2. Read the final turn from the dialogue file
+3. Extract the summary (the content before `Status: DONE`)
+4. Report to user: "Dialogue concluded after <N> rounds. Summary: <summary>"
+5. Remind user: "Full transcript at <file path>"
 
 ---
 

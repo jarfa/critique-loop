@@ -1,17 +1,17 @@
 # Critique Loop
 
-A Claude Code plugin that enables a single Claude Code instance to collaborate with a spawned dialogue partner through turn-based dialogues.
+A Claude Code plugin that starts a dialogue between two subagents to critique & improve your plans or code.
 
 ## Motivation
 
 When planning or writing code I often want Claude Code to critique its own work. Previously this required manually running two instances and relaying messages between them.
 
-This plugin automates the process: invoke once, and a dialogue partner is spawned to provide critique, review, or collaboration. The human stays out of the loop until the dialogue reaches a conclusion.
+This plugin automates the process: invoke once, and a two subagents are spawned to provide critique, review, or collaboration. The human stays out of the loop until the dialogue reaches a conclusion.
 
 Use this for:
-- **Planning/Critiquing** — You propose, the partner challenges assumptions
-- **Writing/Reviewing** — You author code or docs, the partner reviews
-- **Pair Programming** — Collaborative problem-solving with a partner
+- **Planning/Critiquing** — One agent proposes, the partner challenges assumptions
+- **Writing/Reviewing** — One agent presents code or docs, the partner reviews
+- **Pair Programming** — Collaborative problem-solving between two partners
 
 ## Installation
 
@@ -65,7 +65,7 @@ The dialogue runs automatically. You'll see status updates and the final summary
 1. You invoke the skill with a topic and template (or custom roles)
 2. You provide context for what you want to discuss
 3. The skill creates a dialogue file and writes your opening turn
-4. A dialogue partner is spawned to respond
+4. Two dialogue partners are spawned to start the critique-loop
 5. Turns alternate until conclusion (DONE), intervention needed (STUCK), or max rounds reached
 6. You receive the summary and a reminder of where to find the full transcript
 
