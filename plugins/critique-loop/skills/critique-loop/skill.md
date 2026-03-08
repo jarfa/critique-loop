@@ -178,14 +178,14 @@ codex exec \
   "<prompt>"
 ```
 
-Where `<project-root>` is the current working directory and `<prompt>` is:
+Where `<project-root>` is the current working directory and `<prompt>` is the following. **Important:** Replace `<absolute-path-to-plugin>` with the full absolute path to the plugin's directory (e.g., `/Users/.../plugins/critique-loop`). Codex cannot resolve plugin-relative paths.
 
 ````
 You are the <role-b> in a structured dialogue.
 
 ## Instructions
 
-1. Read the file <path-to-plugin>/dialogue-partner-instructions.md for full protocol rules.
+1. Read the file <absolute-path-to-plugin>/dialogue-partner-instructions.md for full protocol rules.
 2. Read the file .dialogues/<topic>.md for the conversation so far.
 3. Determine the correct round number by finding the last "## [role] Round N" header in the dialogue file and following the round tracking rules (increment when both parties have spoken in round N).
 4. Write your response turn by appending to the dialogue file.
@@ -195,7 +195,7 @@ You are the <role-b> in a structured dialogue.
 Use a shell command to append your turn to the dialogue file:
 
 ```bash
-cat >> '.dialogues/<topic>.md' << 'TURN_END'
+cat >> '.dialogues/<topic>.md' << '__CRITIQUE_LOOP_TURN_BOUNDARY_EOF__'
 
 ---
 
@@ -204,7 +204,7 @@ cat >> '.dialogues/<topic>.md' << 'TURN_END'
 <Your message content here>
 
 Status: <STATUS>
-TURN_END
+__CRITIQUE_LOOP_TURN_BOUNDARY_EOF__
 ```
 
 Replace N with the correct round number (N+1 when appropriate), fill in the current date/time, write your actual message, and use the correct status.
