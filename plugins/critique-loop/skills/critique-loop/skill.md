@@ -122,7 +122,7 @@ Spawn Subagent A using the **Task tool** with these parameters:
   <expanded context from Phase 1 Step 1>
 
   Instructions: <path-to-plugin>/dialogue-partner-instructions.md
-  Dialogue file: .dialogues/<topic>.md
+  Dialogue file: <dialogue-file>
 
   Read the instructions file first, then read the dialogue file. Write your opening turn (Round 1) proposing/presenting based on the context above.
   ```
@@ -131,9 +131,9 @@ Remember this agent ID for resumption in the loop.
 
 ### Spawn Subagent B (Role B)
 
-After Subagent A returns, spawn Subagent B. The method depends on the `--partner` setting.
+After Subagent A returns, spawn Subagent B. The method depends on the partner setting.
 
-#### When `--partner claude` (default)
+#### When partner is Claude (default)
 
 Spawn Subagent B using the **Task tool** with:
 - `subagent_type`: `"general-purpose"`
@@ -143,7 +143,7 @@ Spawn Subagent B using the **Task tool** with:
   You are the <role-b> in a dialogue.
 
   Instructions: <path-to-plugin>/dialogue-partner-instructions.md
-  Dialogue file: .dialogues/<topic>.md
+  Dialogue file: <dialogue-file>
 
   Read the instructions file first, then read the dialogue file to understand the conversation. Write your response following the protocol.
   ```
@@ -152,7 +152,7 @@ Spawn Subagent B using the **Task tool** with:
 
 Remember this agent ID for resumption in the loop.
 
-#### When `--partner codex`
+#### When partner is Codex
 
 Instead of the Task tool, use the **Bash tool** to run Codex CLI. Use a **timeout of 300000ms** (5 minutes).
 
@@ -173,7 +173,7 @@ You are the <role-b> in a structured dialogue.
 ## Instructions
 
 1. Read the file <absolute-path-to-plugin>/dialogue-partner-instructions.md for full protocol rules.
-2. Read the file .dialogues/<topic>.md for the conversation so far.
+2. Read the file <dialogue-file> for the conversation so far.
 3. Determine the correct round number by finding the last "## [role] Round N" header in the dialogue file and following the round tracking rules (increment when both parties have spoken in round N).
 4. Write your response turn by appending to the dialogue file.
 
@@ -182,7 +182,7 @@ You are the <role-b> in a structured dialogue.
 Use a shell command to append your turn to the dialogue file:
 
 ```bash
-cat >> '.dialogues/<topic>.md' << '__CRITIQUE_LOOP_TURN_BOUNDARY_EOF__'
+cat >> '<dialogue-file>' << '__CRITIQUE_LOOP_TURN_BOUNDARY_EOF__'
 
 ---
 
@@ -220,20 +220,20 @@ Codex has no session resume — each call is stateless. No agent ID to store.
 ### Write Validation
 
 Before each spawn/resume:
-1. Store current status: `PREV_STATUS=$(tail -1 .dialogues/<topic>.md)`
-2. Store header count: `PREV_HEADERS=$(grep -c '## \[' .dialogues/<topic>.md)`
+1. Store current status: `PREV_STATUS=$(tail -1 <dialogue-file>)`
+2. Store header count: `PREV_HEADERS=$(grep -c '## \[' <dialogue-file>)`
 
 After subagent returns:
-3. Get new status: `NEW_STATUS=$(tail -1 .dialogues/<topic>.md)`
+3. Get new status: `NEW_STATUS=$(tail -1 <dialogue-file>)`
 4. If `PREV_STATUS == NEW_STATUS`: subagent didn't write → go to Error Handling
-5. Get new header count: `NEW_HEADERS=$(grep -c '## \[' .dialogues/<topic>.md)`
+5. Get new header count: `NEW_HEADERS=$(grep -c '## \[' <dialogue-file>)`
 6. If `NEW_HEADERS - PREV_HEADERS != 1`: subagent wrote multiple turns or no header → go to Error Handling
 
 ### Loop Logic
 
 After each subagent returns, check status:
 ```bash
-tail -1 .dialogues/<topic>.md
+tail -1 <dialogue-file>
 ```
 
 If the status line doesn't match a known value (`AWAITING <role>`, `PROPOSING_DONE`, `DONE`, `STUCK`):
@@ -260,12 +260,12 @@ Resume Subagent A using the **Task tool** with:
 
 #### Subagent B
 
-**When `--partner claude` (default):**
+**When partner is Claude (default):**
 Resume Subagent B using the **Task tool** with:
 - `resume`: The agent ID (`AGENT_B_ID`)
 - `prompt`: `"Continue the dialogue. Read the file for the latest turn and respond."`
 
-**When `--partner codex`:**
+**When partner is Codex:**
 Execute a fresh `codex exec` call using the **Bash tool** — same command and prompt as in "Spawn Subagent B / When `--partner codex`" above. Codex has no session resume; the dialogue file carries all context, so nothing is lost.
 
 ### Max Rounds Check
@@ -306,9 +306,9 @@ If you detect `Status: STUCK`:
 
 **Timeout (Codex only):** All Codex `exec` calls use a 300000ms (5 minute) Bash timeout. If the command times out:
 - Report to user: "Codex timed out after 5 minutes. How would you like to proceed?"
-- Options: retry, switch to `--partner claude`, or end dialogue
+- Options: retry, switch to Claude, or end dialogue
 
-**Note:** For any Codex error, "switch to `--partner claude` for the rest of the dialogue" is an additional recovery option.
+**Note:** For any Codex error, "switch to Claude for the rest of the dialogue" is an additional recovery option.
 
 ---
 
