@@ -14,6 +14,7 @@ DIALOGUE_DIR="${DIALOGUE_DIR:-.dialogues}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)   # run via Bash tool to get actual time
 DIALOGUE_FILE="${DIALOGUE_DIR}/${TIMESTAMP}-<topic-slug>.md"
 INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
+CODEX_PROMPT_FILE="/tmp/critique-loop-${TIMESTAMP}-<topic-slug>.txt"   # only used when partner is Codex
 ```
 
 ---
@@ -153,30 +154,21 @@ Remember this agent ID for resumption in the loop.
 
 #### When partner is Codex
 
-Instead of the Task tool, use the **Bash tool** to run Codex CLI. Use a **timeout of 300000ms** (5 minutes).
+Instead of the Task tool, run Codex CLI in two steps to avoid permission-check friction.
 
-```bash
-codex exec \
-  --full-auto \
-  -C "<project-root>" \
-  --skip-git-repo-check \
-  --ephemeral \
-  "<prompt>"
-```
-
-Where `<project-root>` is the current working directory and `<prompt>` is the following. **Important:** Replace `<absolute-path-to-plugin>` with the full absolute path to the plugin's directory (e.g., `/Users/.../plugins/critique-loop`). Codex cannot resolve plugin-relative paths.
+**Step 1:** Use the **Write tool** to create `<CODEX_PROMPT_FILE>` (see Configuration) with the following content. Replace `<absolute-path-to-plugin>` with the full absolute path to the plugin's directory (e.g., `/Users/.../plugins/critique-loop`). Codex cannot resolve plugin-relative paths.
 
 ````
 You are the <role-b> in a structured dialogue.
 
-## Instructions
+INSTRUCTIONS:
 
 1. Read the file <absolute-path-to-plugin>/dialogue-partner-instructions.md for full protocol rules.
 2. Read the file <dialogue-file> for the conversation so far.
 3. Determine the correct round number by finding the last "## [role] Round N" header in the dialogue file and following the round tracking rules (increment when both parties have spoken in round N).
 4. Write your response turn by appending to the dialogue file.
 
-## How to Write Your Turn
+HOW TO WRITE YOUR TURN:
 
 Use a shell command to append your turn to the dialogue file:
 
@@ -195,7 +187,7 @@ __CRITIQUE_LOOP_TURN_BOUNDARY_EOF__
 
 Replace N with the correct round number (N+1 when appropriate), fill in the current date/time, write your actual message, and use the correct status.
 
-## Critical Format Rules
+CRITICAL FORMAT RULES:
 
 - Your turn MUST start with `---` (horizontal rule) followed by a blank line
 - Header format: `## [<role-b>] Round N — YYYY-MM-DD HH:MM`
@@ -204,13 +196,19 @@ Replace N with the correct round number (N+1 when appropriate), fill in the curr
 - If the other party's last status is `PROPOSING_DONE`: either confirm with a summary + `Status: DONE`, or dispute with `Status: AWAITING <other-role>`
 - NEVER edit previous turns — only append
 
-## Important
+IMPORTANT:
 
 - Do NOT use the Write tool or apply_patch — use the `cat >>` shell command shown above
 - Do NOT modify any files other than the dialogue file. Do not create files, run destructive commands, or make any changes beyond appending your turn.
 - Read the instructions file for role-specific guidance on how to approach the dialogue
 - Be a genuine, critical but helpful collaborator — not a yes-person
 ````
+
+**Step 2:** Run Codex CLI using the **Bash tool** with a **timeout of 300000ms** (5 minutes):
+
+```bash
+codex exec --full-auto -C "<project-root>" --skip-git-repo-check --ephemeral "$(cat <CODEX_PROMPT_FILE>)"
+```
 
 **Important:** Do NOT pass the user's goal to Codex. Let it read and interpret the file itself for an unbiased perspective.
 
@@ -219,21 +217,16 @@ Codex has no session resume — each call is stateless. No agent ID to store.
 ### Write Validation
 
 Before each spawn/resume:
-1. Store current status: `PREV_STATUS=$(tail -1 <dialogue-file>)`
-2. Store header count: `PREV_HEADERS=$(grep -c '## \[' <dialogue-file>)`
+1. Use the **Read tool** to read the dialogue file. Note the current last line (status) and count of `## [` headers.
 
 After subagent returns:
-3. Get new status: `NEW_STATUS=$(tail -1 <dialogue-file>)`
-4. If `PREV_STATUS == NEW_STATUS`: subagent didn't write → go to Error Handling
-5. Get new header count: `NEW_HEADERS=$(grep -c '## \[' <dialogue-file>)`
-6. If `NEW_HEADERS - PREV_HEADERS != 1`: subagent wrote multiple turns or no header → go to Error Handling
+2. Use the **Read tool** to read the dialogue file again. Note the new last line and header count.
+3. If the last line is unchanged: subagent didn't write → go to Error Handling
+4. If the header count increased by anything other than 1: subagent wrote multiple turns or no header → go to Error Handling
 
 ### Loop Logic
 
-After each subagent returns, check status:
-```bash
-tail -1 <dialogue-file>
-```
+After each subagent returns, check the last line of the dialogue file (already read during Write Validation above).
 
 If the status line doesn't match a known value (`AWAITING <role>`, `PROPOSING_DONE`, `DONE`, `STUCK`):
 - Treat as `STUCK`
@@ -265,7 +258,7 @@ Resume Subagent B using the **Task tool** with:
 - `prompt`: `"Continue the dialogue. Read the file for the latest turn and respond."`
 
 **When partner is Codex:**
-Execute a fresh `codex exec` call using the **Bash tool** — same command and prompt as in "Spawn Subagent B / When partner is Codex" above. Codex has no session resume; the dialogue file carries all context, so nothing is lost.
+Follow the same two-step process as in "Spawn Subagent B / When partner is Codex" above (write prompt file, then run `codex exec`). Codex has no session resume; the dialogue file carries all context, so nothing is lost.
 
 ### Max Rounds Check
 
