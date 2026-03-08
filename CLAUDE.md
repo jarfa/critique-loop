@@ -65,7 +65,7 @@ Test with Codex partner:
 
 Verify:
 - User sees setup prompts (context gathering, gitignore)
-- User sees "Starting dialogue. Spawning proposer and critic..."
+- User sees "Starting dialogue. Spawning <role-a> and <role-b>..."
 - NO Write/Read tool output during dialogue loop (hidden in subagents)
 - User sees final summary when done
 - Dialogue file contains correct turn history

@@ -31,41 +31,24 @@ claude --plugin-dir /path/to/critique-loop
 
 ## Usage
 
-```
-/critique-loop --topic api-design --template planning
-```
-
-Or with custom roles:
+Just describe what you want in plain text:
 
 ```
-/critique-loop --topic bank-heist --role1 thief --role2 getaway-driver
+/critique-loop plan my new caching strategy
 ```
 
-The dialogue runs automatically. You'll see status updates and the final summary when complete.
+```
+/critique-loop review the auth module with codex
+```
 
-## Arguments
-
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `--topic <topic>` | Yes | Dialogue identifier |
-| `--template <template>` | Either this... | Predefined role pair |
-| `--role1 <role>` + `--role2 <role>` | ...or both of these | Custom role names |
-| `--max-rounds <N>` | No | Maximum rounds (default: 5) |
-
-## Templates
-
-| Template | Your Role | Partner Role | Use case |
-|----------|-----------|--------------|----------|
-| `planning` | proposer | critic | Planning sessions |
-| `review` | author | reviewer | Code/doc reviews |
-| `pair` | lead | partner | Pair programming |
+The plugin infers appropriate roles (e.g., "proposer" / "critic" for planning, "author" / "reviewer" for reviews) and starts the dialogue automatically. Say "codex" anywhere in your description to use Codex as the partner instead of Claude.
 
 ## How It Works
 
-1. You invoke the skill with a topic and template (or custom roles)
-2. You provide context for what you want to discuss
-3. The skill creates a dialogue file and writes your opening turn
-4. Two dialogue partners are spawned to start the critique-loop
+1. You describe what you want to discuss in plain text
+2. The orchestrator infers roles, topic, and partner from your description
+3. You provide additional context when prompted
+4. Two subagents are spawned to start the critique-loop
 5. Turns alternate until conclusion (DONE), intervention needed (STUCK), or max rounds reached
 6. You receive the summary and a reminder of where to find the full transcript
 
@@ -77,7 +60,7 @@ The dialogue runs automatically. You'll see status updates and the final summary
 
 ## Future Improvements
 
-The dialogue file currently serves as the communication medium between parent and partner. A potential optimization: direct communication where the parent passes context in the resume prompt and the partner returns its response directly, eliminating file I/O overhead. The dialogue file would then become optional (e.g., `--log-dialogue` flag) for debugging purposes.
+The dialogue file currently serves as the communication medium between the subagents. A potential optimization: direct communication where the orchestrator passes context in the resume prompt and the partner returns its response directly, eliminating file I/O overhead. The dialogue file would then become optional for debugging purposes.
 
 ## License
 
