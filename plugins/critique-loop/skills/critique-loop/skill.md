@@ -1,6 +1,6 @@
 ---
 name: critique-loop
-description: "Start a dialogue by describing what you want. Example: /critique-loop plan my new caching strategy with codex"
+description: "Spawn two agents to debate and refine your ideas through structured dialogue."
 ---
 
 # Critique Loop
