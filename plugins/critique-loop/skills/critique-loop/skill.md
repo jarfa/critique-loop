@@ -204,10 +204,10 @@ IMPORTANT:
 - Be a genuine, critical but helpful collaborator — not a yes-person
 ````
 
-**Step 2:** Run Codex CLI using the **Bash tool** with a **timeout of 300000ms** (5 minutes):
+**Step 2:** Run Codex CLI using the **Bash tool** with a **timeout of 300000ms** (5 minutes), piping the prompt via stdin:
 
 ```bash
-codex exec --full-auto -C "<project-root>" --skip-git-repo-check --ephemeral "$(cat <CODEX_PROMPT_FILE>)"
+codex exec --full-auto -C "<project-root>" --skip-git-repo-check --ephemeral - < <CODEX_PROMPT_FILE>
 ```
 
 **Important:** Do NOT pass the user's goal to Codex. Let it read and interpret the file itself for an unbiased perspective.
