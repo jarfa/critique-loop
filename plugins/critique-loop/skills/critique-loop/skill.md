@@ -266,7 +266,7 @@ Resume Subagent B using the **Task tool** with:
 - `prompt`: `"Continue the dialogue. Read the file for the latest turn and respond."`
 
 **When partner is Codex:**
-Execute a fresh `codex exec` call using the **Bash tool** — same command and prompt as in "Spawn Subagent B / When `--partner codex`" above. Codex has no session resume; the dialogue file carries all context, so nothing is lost.
+Execute a fresh `codex exec` call using the **Bash tool** — same command and prompt as in "Spawn Subagent B / When partner is Codex" above. Codex has no session resume; the dialogue file carries all context, so nothing is lost.
 
 ### Max Rounds Check
 
