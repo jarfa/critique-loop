@@ -16,7 +16,7 @@ Critique Loop is a Claude Code plugin that enables structured, turn-based dialog
 
 2. **Participant Instructions** (`plugins/critique-loop/dialogue-partner-instructions.md`) - Standalone protocol rules both subagents follow. Kept separate from orchestrator to ensure unbiased dialogue.
 
-3. **Dialogue Files** (`.dialogues/<YYYYMMDD-HH:MM:SS>-<topic-slug>.md`) - Append-only markdown files storing the conversation. Format:
+3. **Dialogue Files** (`.dialogues/<YYYYMMDD-HHMMSS>-<topic-slug>.md`) - Append-only markdown files storing the conversation. Format:
    ```markdown
    # Dialogue: <topic>
    Started: YYYY-MM-DD HH:MM

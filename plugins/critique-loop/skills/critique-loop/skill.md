@@ -11,7 +11,7 @@ You orchestrate a structured dialogue between two spawned subagents. Follow this
 
 ```
 DIALOGUE_DIR="${DIALOGUE_DIR:-.dialogues}"
-TIMESTAMP="<YYYYMMDD-HH:MM:SS>"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)   # run via Bash tool to get actual time
 DIALOGUE_FILE="${DIALOGUE_DIR}/${TIMESTAMP}-<topic-slug>.md"
 INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
 ```
@@ -62,7 +62,7 @@ If yes, append `.dialogues/` to `.gitignore` (create the file if it doesn't exis
 
 ### Step 5: Create the dialogue file
 
-Use the **Write tool** to create `.dialogues/<YYYYMMDD-HH:MM:SS>-<topic-slug>.md` (the Write tool will create the `.dialogues/` directory automatically):
+Use the **Write tool** to create `.dialogues/<YYYYMMDD-HHMMSS>-<topic-slug>.md` (the Write tool will create the `.dialogues/` directory automatically):
 
 ```markdown
 # Dialogue: <topic-slug>
