@@ -1,46 +1,18 @@
 ---
 name: critique-loop
-description: "Start a dialogue with a spawned partner. Enables planning, reviewing, and pair programming with automated turn-taking."
+description: "Spawn two agents to debate and refine your ideas through structured dialogue. "
 ---
 
 # Critique Loop
 
 You orchestrate a structured dialogue between two spawned subagents. Follow this protocol exactly.
 
-## Parse Arguments
-
-Extract from the invocation:
-- `--topic <topic>` (REQUIRED): The dialogue identifier
-- `--template <template>`: Predefined role pair (`planning`, `review`, or `pair`)
-- `--role1 <role>` + `--role2 <role>`: Custom role names (both required if not using template)
-- `--max-rounds <N>`: Maximum rounds (default: 5, or template default)
-- `--partner <type>`: Agent for Subagent B. Options: `claude` (default), `codex`
-
-**Validation:**
-- `--topic` is required. If missing, ask the user for it.
-- Must provide EITHER `--template` OR BOTH `--role1` and `--role2`
-- If `--partner codex`: run `codex --version` via the **Bash tool** to verify it's installed. If the command fails, tell the user: "Codex CLI not found. Install it or use `--partner claude` (default)." and stop.
-- If validation fails, explain the requirement and ask for correct arguments
-
-## Templates
-
-If `--template` was provided, use these role pairs:
-
-| Template | Role A | Role B | Max Rounds |
-|----------|--------|--------|------------|
-| `planning` | proposer | critic | 5 |
-| `review` | author | reviewer | 5 |
-| `pair` | lead | partner | 7 |
-
-If using custom roles: Subagent A takes `--role1`, Subagent B takes `--role2`.
-
-**Note:** When using custom roles, avoid role names that are substrings of each other (e.g., don't use 'lead' and 'team-lead' in the same dialogue).
-
 ## Configuration
 
 ```
 DIALOGUE_DIR="${DIALOGUE_DIR:-.dialogues}"
-DIALOGUE_FILE="${DIALOGUE_DIR}/<topic>.md"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)   # run via Bash tool to get actual time
+DIALOGUE_FILE="${DIALOGUE_DIR}/${TIMESTAMP}-<topic-slug>.md"
 INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
 ```
 
@@ -48,61 +20,81 @@ INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
 
 ## Phase 1: Setup
 
-### Step 1: Gather context
+### Step 1: Detect partner
 
-Ask the user: "What would you like to discuss or accomplish in this dialogue?"
+The user's input after `/critique-loop` is free-form text. If the user is asking for codex to be used as the dialogue partner (e.g., "with codex", "using codex", "codex partner"), use Codex as the partner. Otherwise default to Claude. Strip the codex reference from the description.
 
-Wait for their response. Before proceeding:
-- If the user references prior conversation ("the idea we discussed", "that feature", etc.), expand it into a self-contained description using your conversation history
+Only treat "codex" as a partner request when it appears as a qualifier indicating the agent, not when it describes the subject matter (e.g., "review my codex-based API" is about codex, not requesting it as a partner). If the intent is ambiguous, ask: "Did you want Codex as the dialogue partner, or is that part of the topic?"
+
+**Round count:** If the user specifies a round count (e.g., "in 3 rounds", "max 8 rounds"), use that instead of the default 5 (clamp to 1–20). Strip the round-count reference from the description.
+
+**Codex validation:** If using Codex, run `codex --version` via the **Bash tool** to verify it's installed. If the command fails, tell the user: "Codex CLI not found. Install it or use Claude (default)." and stop.
+
+### Step 2: Expand context
+
+The user's description may be brief. Before passing it to Subagent A, expand it into self-contained context:
+- If the user references prior conversation ("the idea we discussed", "that feature", etc.), expand it into a full description using your conversation history
 - Include relevant background: problem context, constraints, decisions already made
+- If you cannot confidently understand what the user wants to discuss, ask one clarifying question: "What are you looking to get out of this dialogue?"
 - The goal is for Subagent A to understand the task without access to your conversation history
+
+If the description is already self-contained, use it directly.
 
 This expanded context becomes the user context passed to Subagent A.
 
-### Step 2: Check gitignore
+### Step 3: Determine topic slug and roles
+
+Now that you fully understand the task:
+
+1. **Topic slug**: Derive by summarizing the description. Lowercase, replace spaces/special chars with hyphens, truncate to ~50 chars. Example: "review my auth module" → `review-auth-module`.
+2. **Role names**: Choose two complementary roles suited to the task. Example pairs for inspiration (you are not limited to these):
+   - proposer / critic
+   - architect / skeptic
+   - author / reviewer
+   - designer / challenger
+   - advocate / devil's-advocate
+   - implementer / tester
+
+   Role A = the role aligned with the user's perspective (proposer, author, advocate, etc.)
+   Role B = the role that provides critique/alternative perspective (critic, reviewer, skeptic, etc.)
+
+   Use lowercase kebab-case for role names (e.g., `devil's-advocate`, not `Devil's Advocate`).
+
+### Step 4: Check gitignore
 
 Check if `.dialogues/` is in the project's `.gitignore`. If not, ask the user: "Would you like me to add `.dialogues/` to your .gitignore? Dialogue files are typically not committed."
 
 If yes, append `.dialogues/` to `.gitignore` (create the file if it doesn't exist).
 
-### Step 3: Determine roles
+### Step 5: Create the dialogue file
 
-- If `--template` provided: Use roles from template table
-- If `--role1`/`--role2` provided: Use those role names
-
-Role A = first role (from template or `--role1`)
-Role B = second role (from template or `--role2`)
-
-### Step 4: Create the dialogue file
-
-Use the **Write tool** to create `.dialogues/<topic>.md` (the Write tool will create the `.dialogues/` directory automatically):
+Use the **Write tool** to create `.dialogues/<YYYYMMDD-HHMMSS>-<topic-slug>.md` (the Write tool will create the `.dialogues/` directory automatically):
 
 ```markdown
-# Dialogue: <topic>
+# Dialogue: <topic-slug>
 
 Started: <YYYY-MM-DD HH:MM>
-Template: <template>          # Only if using a template
-Max rounds: <max-rounds>
+Max rounds: 5
 
 Participants:
   - <role-a> @ <current working directory>
-  - <role-b> (subagent)            # when --partner claude (default)
-  - <role-b> (codex)               # when --partner codex
+  - <role-b> (subagent)            # when partner is Claude
+  - <role-b> (codex)               # when partner is Codex
 
 ---
 
 ```
 
-Use the appropriate participant line based on `--partner`. Only include one `<role-b>` line (not both).
+Use the appropriate participant line based on the partner. Only include one `<role-b>` line (not both).
 
 Note: Both participants are listed upfront. Do NOT write any dialogue turns — the subagents will do that.
 
-### Step 5: Inform user and proceed
+### Step 6: Inform user and proceed
 
-When `--partner claude` (default):
+When partner is Claude (default):
 Tell the user: "Starting dialogue. Spawning <role-a> and <role-b>..."
 
-When `--partner codex`:
+When partner is Codex:
 Tell the user: "Starting dialogue. Spawning <role-a> (Claude) and <role-b> (Codex)..."
 
 Now proceed to Phase 2: Dialogue Loop.
@@ -132,10 +124,10 @@ Spawn Subagent A using the **Task tool** with these parameters:
   You are the <role-a> in a dialogue.
 
   ## Context
-  <expanded context from Phase 1 Step 1>
+  <expanded context from Phase 1 Step 2>
 
   Instructions: <path-to-plugin>/dialogue-partner-instructions.md
-  Dialogue file: .dialogues/<topic>.md
+  Dialogue file: <dialogue-file>
 
   Read the instructions file first, then read the dialogue file. Write your opening turn (Round 1) proposing/presenting based on the context above.
   ```
@@ -144,9 +136,9 @@ Remember this agent ID for resumption in the loop.
 
 ### Spawn Subagent B (Role B)
 
-After Subagent A returns, spawn Subagent B. The method depends on the `--partner` setting.
+After Subagent A returns, spawn Subagent B. The method depends on the partner setting.
 
-#### When `--partner claude` (default)
+#### When partner is Claude (default)
 
 Spawn Subagent B using the **Task tool** with:
 - `subagent_type`: `"general-purpose"`
@@ -156,7 +148,7 @@ Spawn Subagent B using the **Task tool** with:
   You are the <role-b> in a dialogue.
 
   Instructions: <path-to-plugin>/dialogue-partner-instructions.md
-  Dialogue file: .dialogues/<topic>.md
+  Dialogue file: <dialogue-file>
 
   Read the instructions file first, then read the dialogue file to understand the conversation. Write your response following the protocol.
   ```
@@ -165,66 +157,23 @@ Spawn Subagent B using the **Task tool** with:
 
 Remember this agent ID for resumption in the loop.
 
-#### When `--partner codex`
+#### When partner is Codex
 
-Instead of the Task tool, use the **Bash tool** to run Codex CLI. Use a **timeout of 300000ms** (5 minutes).
+Instead of the Task tool, use the **Bash tool** to run Codex CLI with a **timeout of 300000ms** (5 minutes).
 
 ```bash
-codex exec \
-  --full-auto \
-  -C "<project-root>" \
-  --skip-git-repo-check \
-  --ephemeral \
-  "<prompt>"
+codex exec --full-auto -C "<project-root>" --skip-git-repo-check --ephemeral "<prompt>"
 ```
 
 Where `<project-root>` is the current working directory and `<prompt>` is the following. **Important:** Replace `<absolute-path-to-plugin>` with the full absolute path to the plugin's directory (e.g., `/Users/.../plugins/critique-loop`). Codex cannot resolve plugin-relative paths.
 
-````
+**WARNING: The prompt MUST NOT contain lines starting with `#`.** Lines starting with `#` inside a quoted argument trigger Claude Code permission checks ("quoted newline followed by #-prefixed line"). Use the template below exactly — it is deliberately written as a single paragraph with no markdown headers. The instructions file and dialogue file already contain the markdown turn format that Codex needs.
+
+```
 You are the <role-b> in a structured dialogue.
 
-## Instructions
-
-1. Read the file <absolute-path-to-plugin>/dialogue-partner-instructions.md for full protocol rules.
-2. Read the file .dialogues/<topic>.md for the conversation so far.
-3. Determine the correct round number by finding the last "## [role] Round N" header in the dialogue file and following the round tracking rules (increment when both parties have spoken in round N).
-4. Write your response turn by appending to the dialogue file.
-
-## How to Write Your Turn
-
-Use a shell command to append your turn to the dialogue file:
-
-```bash
-cat >> '.dialogues/<topic>.md' << '__CRITIQUE_LOOP_TURN_BOUNDARY_EOF__'
-
----
-
-## [<role-b>] Round N — YYYY-MM-DD HH:MM
-
-<Your message content here>
-
-Status: <STATUS>
-__CRITIQUE_LOOP_TURN_BOUNDARY_EOF__
+Read <absolute-path-to-plugin>/dialogue-partner-instructions.md for full protocol rules and turn format. Then read <dialogue-file> for the conversation so far. Write your response turn by appending to the dialogue file using cat >> with a heredoc, following the exact turn format from the instructions file. Use the correct round number (increment when both parties have spoken). Do NOT use the Write tool or apply_patch. Do NOT modify any files other than the dialogue file. Be a genuine, critical but helpful collaborator — not a yes-person.
 ```
-
-Replace N with the correct round number (N+1 when appropriate), fill in the current date/time, write your actual message, and use the correct status.
-
-## Critical Format Rules
-
-- Your turn MUST start with `---` (horizontal rule) followed by a blank line
-- Header format: `## [<role-b>] Round N — YYYY-MM-DD HH:MM`
-- The `Status:` line MUST be the very last line of the file after your append
-- Valid statuses: `AWAITING <other-role>`, `PROPOSING_DONE`, `DONE`, `STUCK`
-- If the other party's last status is `PROPOSING_DONE`: either confirm with a summary + `Status: DONE`, or dispute with `Status: AWAITING <other-role>`
-- NEVER edit previous turns — only append
-
-## Important
-
-- Do NOT use the Write tool or apply_patch — use the `cat >>` shell command shown above
-- Do NOT modify any files other than the dialogue file. Do not create files, run destructive commands, or make any changes beyond appending your turn.
-- Read the instructions file for role-specific guidance on how to approach the dialogue
-- Be a genuine, critical but helpful collaborator — not a yes-person
-````
 
 **Important:** Do NOT pass the user's goal to Codex. Let it read and interpret the file itself for an unbiased perspective.
 
@@ -233,21 +182,16 @@ Codex has no session resume — each call is stateless. No agent ID to store.
 ### Write Validation
 
 Before each spawn/resume:
-1. Store current status: `PREV_STATUS=$(tail -1 .dialogues/<topic>.md)`
-2. Store header count: `PREV_HEADERS=$(grep -c '## \[' .dialogues/<topic>.md)`
+1. Use the **Read tool** to read the dialogue file. Note the current last line (status) and count of `## [` headers.
 
 After subagent returns:
-3. Get new status: `NEW_STATUS=$(tail -1 .dialogues/<topic>.md)`
-4. If `PREV_STATUS == NEW_STATUS`: subagent didn't write → go to Error Handling
-5. Get new header count: `NEW_HEADERS=$(grep -c '## \[' .dialogues/<topic>.md)`
-6. If `NEW_HEADERS - PREV_HEADERS != 1`: subagent wrote multiple turns or no header → go to Error Handling
+2. Use the **Read tool** to read the dialogue file again. Note the new last line and header count.
+3. If the last line is unchanged: subagent didn't write → go to Error Handling
+4. If the header count increased by anything other than 1: subagent wrote multiple turns or no header → go to Error Handling
 
 ### Loop Logic
 
-After each subagent returns, check status:
-```bash
-tail -1 .dialogues/<topic>.md
-```
+After each subagent returns, check the last line of the dialogue file (already read during Write Validation above).
 
 If the status line doesn't match a known value (`AWAITING <role>`, `PROPOSING_DONE`, `DONE`, `STUCK`):
 - Treat as `STUCK`
@@ -273,13 +217,13 @@ Resume Subagent A using the **Task tool** with:
 
 #### Subagent B
 
-**When `--partner claude` (default):**
+**When partner is Claude (default):**
 Resume Subagent B using the **Task tool** with:
 - `resume`: The agent ID (`AGENT_B_ID`)
 - `prompt`: `"Continue the dialogue. Read the file for the latest turn and respond."`
 
-**When `--partner codex`:**
-Execute a fresh `codex exec` call using the **Bash tool** — same command and prompt as in "Spawn Subagent B / When `--partner codex`" above. Codex has no session resume; the dialogue file carries all context, so nothing is lost.
+**When partner is Codex:**
+Execute a fresh `codex exec` call using the **Bash tool** — same command and prompt as in "Spawn Subagent B / When partner is Codex" above. Codex has no session resume; the dialogue file carries all context, so nothing is lost.
 
 ### Max Rounds Check
 
@@ -319,9 +263,9 @@ If you detect `Status: STUCK`:
 
 **Timeout (Codex only):** All Codex `exec` calls use a 300000ms (5 minute) Bash timeout. If the command times out:
 - Report to user: "Codex timed out after 5 minutes. How would you like to proceed?"
-- Options: retry, switch to `--partner claude`, or end dialogue
+- Options: retry, switch to Claude, or end dialogue
 
-**Note:** For any Codex error, "switch to `--partner claude` for the rest of the dialogue" is an additional recovery option.
+**Note:** For any Codex error, "switch to Claude for the rest of the dialogue" is an additional recovery option.
 
 ---
 
