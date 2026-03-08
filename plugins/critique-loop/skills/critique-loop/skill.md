@@ -1,46 +1,35 @@
 ---
 name: critique-loop
-description: "Start a dialogue with a spawned partner. Enables planning, reviewing, and pair programming with automated turn-taking."
+description: "Start a dialogue by describing what you want. Example: /critique-loop plan my new caching strategy with codex"
 ---
 
 # Critique Loop
 
 You orchestrate a structured dialogue between two spawned subagents. Follow this protocol exactly.
 
-## Parse Arguments
+## Understand Request
 
-Extract from the invocation:
-- `--topic <topic>` (REQUIRED): The dialogue identifier
-- `--template <template>`: Predefined role pair (`planning`, `review`, or `pair`)
-- `--role1 <role>` + `--role2 <role>`: Custom role names (both required if not using template)
-- `--max-rounds <N>`: Maximum rounds (default: 5, or template default)
-- `--partner <type>`: Agent for Subagent B. Options: `claude` (default), `codex`
+The user's input after `/critique-loop` is free-form text. Parse it to determine:
 
-**Validation:**
-- `--topic` is required. If missing, ask the user for it.
-- Must provide EITHER `--template` OR BOTH `--role1` and `--role2`
-- If `--partner codex`: run `codex --version` via the **Bash tool** to verify it's installed. If the command fails, tell the user: "Codex CLI not found. Install it or use `--partner claude` (default)." and stop.
-- If validation fails, explain the requirement and ask for correct arguments
+1. **Partner**: If "codex" appears anywhere in the text (e.g., "with codex", "using codex", "codex partner"), use Codex as the partner. Otherwise default to Claude. Strip the codex reference from the description.
+2. **Topic slug**: Derive from the remaining description. Lowercase, replace spaces/special chars with hyphens, truncate to ~50 chars. Example: "review my auth module" → `review-auth-module`.
+3. **Role names**: Choose two complementary roles suited to the task. Example pairs for inspiration (you are not limited to these):
+   - proposer / critic
+   - architect / skeptic
+   - author / reviewer
+   - designer / challenger
+   - advocate / devil's-advocate
+   - implementer / tester
+4. **If unclear**: If you cannot confidently understand what the user wants to discuss, ask one clarifying question: "What are you looking to get out of this dialogue?"
 
-## Templates
-
-If `--template` was provided, use these role pairs:
-
-| Template | Role A | Role B | Max Rounds |
-|----------|--------|--------|------------|
-| `planning` | proposer | critic | 5 |
-| `review` | author | reviewer | 5 |
-| `pair` | lead | partner | 7 |
-
-If using custom roles: Subagent A takes `--role1`, Subagent B takes `--role2`.
-
-**Note:** When using custom roles, avoid role names that are substrings of each other (e.g., don't use 'lead' and 'team-lead' in the same dialogue).
+**Codex validation:** If using Codex, run `codex --version` via the **Bash tool** to verify it's installed. If the command fails, tell the user: "Codex CLI not found. Install it or use Claude (default)." and stop.
 
 ## Configuration
 
 ```
 DIALOGUE_DIR="${DIALOGUE_DIR:-.dialogues}"
-DIALOGUE_FILE="${DIALOGUE_DIR}/<topic>.md"
+TIMESTAMP="<YYYYMMDD-HH:MM:SS>"
+DIALOGUE_FILE="${DIALOGUE_DIR}/${TIMESTAMP}-<topic-slug>.md"
 INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
 ```
 
