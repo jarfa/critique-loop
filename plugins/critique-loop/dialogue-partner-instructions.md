@@ -99,7 +99,7 @@ Determine the current round by parsing the last `## [role] Round N` header.
 
 ### Rule 8: Use Write Tool for File Writes
 
-ALWAYS use the **Write tool** to update the dialogue file (read current content, append your turn, write back). Do NOT use Bash commands (echo, cat, etc.) for writing to the dialogue file.
+ALWAYS use the **Write tool** to update the dialogue file (read current content, append your turn, write back). Do NOT use Bash commands (echo, cat, etc.) for writing to the dialogue file (unless you are not a Claude agent and therefore don't have a write tool).
 
 ## Role Guidance
 

@@ -14,10 +14,12 @@ Extract from the invocation:
 - `--template <template>`: Predefined role pair (`planning`, `review`, or `pair`)
 - `--role1 <role>` + `--role2 <role>`: Custom role names (both required if not using template)
 - `--max-rounds <N>`: Maximum rounds (default: 5, or template default)
+- `--partner <type>`: Agent for Subagent B. Options: `claude` (default), `codex`
 
 **Validation:**
 - `--topic` is required. If missing, ask the user for it.
 - Must provide EITHER `--template` OR BOTH `--role1` and `--role2`
+- If `--partner codex`: run `codex --version` via the **Bash tool** to verify it's installed. If the command fails, tell the user: "Codex CLI not found. Install it or use `--partner claude` (default)." and stop.
 - If validation fails, explain the requirement and ask for correct arguments
 
 ## Templates
@@ -84,17 +86,24 @@ Max rounds: <max-rounds>
 
 Participants:
   - <role-a> @ <current working directory>
-  - <role-b> (subagent)
+  - <role-b> (subagent)            # when --partner claude (default)
+  - <role-b> (codex)               # when --partner codex
 
 ---
 
 ```
 
+Use the appropriate participant line based on `--partner`. Only include one `<role-b>` line (not both).
+
 Note: Both participants are listed upfront. Do NOT write any dialogue turns — the subagents will do that.
 
 ### Step 5: Inform user and proceed
 
+When `--partner claude` (default):
 Tell the user: "Starting dialogue. Spawning <role-a> and <role-b>..."
+
+When `--partner codex`:
+Tell the user: "Starting dialogue. Spawning <role-a> (Claude) and <role-b> (Codex)..."
 
 Now proceed to Phase 2: Dialogue Loop.
 
@@ -135,7 +144,11 @@ Remember this agent ID for resumption in the loop.
 
 ### Spawn Subagent B (Role B)
 
-After Subagent A returns, spawn Subagent B using the **Task tool** with:
+After Subagent A returns, spawn Subagent B. The method depends on the `--partner` setting.
+
+#### When `--partner claude` (default)
+
+Spawn Subagent B using the **Task tool** with:
 - `subagent_type`: `"general-purpose"`
 - `description`: `"Dialogue: <role-b>"`
 - `prompt`:
@@ -152,14 +165,82 @@ After Subagent A returns, spawn Subagent B using the **Task tool** with:
 
 Remember this agent ID for resumption in the loop.
 
+#### When `--partner codex`
+
+Instead of the Task tool, use the **Bash tool** to run Codex CLI. Use a **timeout of 300000ms** (5 minutes).
+
+```bash
+codex exec \
+  --full-auto \
+  -C "<project-root>" \
+  --skip-git-repo-check \
+  --ephemeral \
+  "<prompt>"
+```
+
+Where `<project-root>` is the current working directory and `<prompt>` is the following. **Important:** Replace `<absolute-path-to-plugin>` with the full absolute path to the plugin's directory (e.g., `/Users/.../plugins/critique-loop`). Codex cannot resolve plugin-relative paths.
+
+````
+You are the <role-b> in a structured dialogue.
+
+## Instructions
+
+1. Read the file <absolute-path-to-plugin>/dialogue-partner-instructions.md for full protocol rules.
+2. Read the file .dialogues/<topic>.md for the conversation so far.
+3. Determine the correct round number by finding the last "## [role] Round N" header in the dialogue file and following the round tracking rules (increment when both parties have spoken in round N).
+4. Write your response turn by appending to the dialogue file.
+
+## How to Write Your Turn
+
+Use a shell command to append your turn to the dialogue file:
+
+```bash
+cat >> '.dialogues/<topic>.md' << '__CRITIQUE_LOOP_TURN_BOUNDARY_EOF__'
+
+---
+
+## [<role-b>] Round N — YYYY-MM-DD HH:MM
+
+<Your message content here>
+
+Status: <STATUS>
+__CRITIQUE_LOOP_TURN_BOUNDARY_EOF__
+```
+
+Replace N with the correct round number (N+1 when appropriate), fill in the current date/time, write your actual message, and use the correct status.
+
+## Critical Format Rules
+
+- Your turn MUST start with `---` (horizontal rule) followed by a blank line
+- Header format: `## [<role-b>] Round N — YYYY-MM-DD HH:MM`
+- The `Status:` line MUST be the very last line of the file after your append
+- Valid statuses: `AWAITING <other-role>`, `PROPOSING_DONE`, `DONE`, `STUCK`
+- If the other party's last status is `PROPOSING_DONE`: either confirm with a summary + `Status: DONE`, or dispute with `Status: AWAITING <other-role>`
+- NEVER edit previous turns — only append
+
+## Important
+
+- Do NOT use the Write tool or apply_patch — use the `cat >>` shell command shown above
+- Do NOT modify any files other than the dialogue file. Do not create files, run destructive commands, or make any changes beyond appending your turn.
+- Read the instructions file for role-specific guidance on how to approach the dialogue
+- Be a genuine, critical but helpful collaborator — not a yes-person
+````
+
+**Important:** Do NOT pass the user's goal to Codex. Let it read and interpret the file itself for an unbiased perspective.
+
+Codex has no session resume — each call is stateless. No agent ID to store.
+
 ### Write Validation
 
 Before each spawn/resume:
 1. Store current status: `PREV_STATUS=$(tail -1 .dialogues/<topic>.md)`
+2. Store header count: `PREV_HEADERS=$(grep -c '## \[' .dialogues/<topic>.md)`
 
 After subagent returns:
-2. Get new status: `NEW_STATUS=$(tail -1 .dialogues/<topic>.md)`
-3. If `PREV_STATUS == NEW_STATUS`: subagent didn't write → go to Error Handling
+3. Get new status: `NEW_STATUS=$(tail -1 .dialogues/<topic>.md)`
+4. If `PREV_STATUS == NEW_STATUS`: subagent didn't write → go to Error Handling
+5. Get new header count: `NEW_HEADERS=$(grep -c '## \[' .dialogues/<topic>.md)`
+6. If `NEW_HEADERS - PREV_HEADERS != 1`: subagent wrote multiple turns or no header → go to Error Handling
 
 ### Loop Logic
 
@@ -184,9 +265,21 @@ Act based on the status:
 
 ### Resuming Subagents
 
-Resume a subagent using the **Task tool** with:
-- `resume`: The agent ID (`AGENT_A_ID` or `AGENT_B_ID`)
+#### Subagent A (always Claude)
+
+Resume Subagent A using the **Task tool** with:
+- `resume`: The agent ID (`AGENT_A_ID`)
 - `prompt`: `"Continue the dialogue. Read the file for the latest turn and respond."`
+
+#### Subagent B
+
+**When `--partner claude` (default):**
+Resume Subagent B using the **Task tool** with:
+- `resume`: The agent ID (`AGENT_B_ID`)
+- `prompt`: `"Continue the dialogue. Read the file for the latest turn and respond."`
+
+**When `--partner codex`:**
+Execute a fresh `codex exec` call using the **Bash tool** — same command and prompt as in "Spawn Subagent B / When `--partner codex`" above. Codex has no session resume; the dialogue file carries all context, so nothing is lost.
 
 ### Max Rounds Check
 
@@ -212,13 +305,23 @@ If you detect `Status: STUCK`:
 
 ### Error Handling
 
-**Task tool failure:** If the Task tool returns an error when spawning or resuming:
+**Invocation failure:** If the subagent fails to run (Task tool error for Claude, non-zero exit code for Codex):
 - Report to user: "Subagent failed: <error>. How would you like to proceed?"
 - Options: retry, end dialogue, or provide guidance
 
 **Status unchanged:** If subagent returns but status is unchanged:
 - Report to user: "Subagent returned but didn't write a turn. How would you like to proceed?"
 - Options: retry spawn, end dialogue, or provide guidance
+
+**Malformed turn:** After subagent returns, check if the last line of the dialogue file is a valid `Status:` line (matching one of: `AWAITING <role>`, `PROPOSING_DONE`, `DONE`, `STUCK`). If not:
+- Report to user: "Subagent wrote a turn but the format is malformed (last line: '<value>'). Please review the dialogue file at <path>."
+- Options: manually fix and continue, retry, or end dialogue
+
+**Timeout (Codex only):** All Codex `exec` calls use a 300000ms (5 minute) Bash timeout. If the command times out:
+- Report to user: "Codex timed out after 5 minutes. How would you like to proceed?"
+- Options: retry, switch to `--partner claude`, or end dialogue
+
+**Note:** For any Codex error, "switch to `--partner claude` for the rest of the dialogue" is an additional recovery option.
 
 ---
 
@@ -248,6 +351,6 @@ These rules apply to all dialogue turns (written by subagents, not the orchestra
 
 1. **Append only** — Never edit previous turns
 2. **Status is always last** — Final line of each turn must be `Status: <value>`
-3. **Use Write tool** — All dialogue file writes use Write (read, append, write back)
+3. **Use Write tool** — Claude subagents use Write tool; Codex uses shell append (`cat >>`)
 4. **Round tracking** — Increment round when both parties have spoken
 5. **Orchestrator doesn't write turns** — Only creates header and coordinates subagents
