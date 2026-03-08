@@ -22,7 +22,11 @@ INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
 
 ### Step 1: Detect partner
 
-The user's input after `/critique-loop` is free-form text. If the user is asking for codex to be used (e.g., "with codex", "using codex", "codex partner"), use Codex as the partner. Otherwise default to Claude. Strip the codex reference from the description.
+The user's input after `/critique-loop` is free-form text. If the user is asking for codex to be used as the dialogue partner (e.g., "with codex", "using codex", "codex partner"), use Codex as the partner. Otherwise default to Claude. Strip the codex reference from the description.
+
+Only treat "codex" as a partner request when it appears as a qualifier indicating the agent, not when it describes the subject matter (e.g., "review my codex-based API" is about codex, not requesting it as a partner). If the intent is ambiguous, ask: "Did you want Codex as the dialogue partner, or is that part of the topic?"
+
+**Round count:** If the user specifies a round count (e.g., "in 3 rounds", "max 8 rounds", "quick — 2 rounds"), use that instead of the default 5. Strip the round-count reference from the description.
 
 **Codex validation:** If using Codex, run `codex --version` via the **Bash tool** to verify it's installed. If the command fails, tell the user: "Codex CLI not found. Install it or use Claude (default)." and stop.
 
@@ -161,7 +165,7 @@ codex exec --full-auto -C "<project-root>" --skip-git-repo-check --ephemeral "<p
 
 Where `<project-root>` is the current working directory and `<prompt>` is the following. **Important:** Replace `<absolute-path-to-plugin>` with the full absolute path to the plugin's directory (e.g., `/Users/.../plugins/critique-loop`). Codex cannot resolve plugin-relative paths.
 
-**Important:** The prompt MUST NOT contain lines starting with `#` — this triggers permission checks. Use the template below exactly (section headers use `UPPERCASE:` labels, not markdown headers). The instructions file and dialogue file already contain the markdown turn format that Codex needs.
+**WARNING: The prompt MUST NOT contain lines starting with `#`.** Lines starting with `#` inside a quoted argument trigger Claude Code permission checks ("quoted newline followed by #-prefixed line"). Use the template below exactly — it is deliberately written as a single paragraph with no markdown headers. The instructions file and dialogue file already contain the markdown turn format that Codex needs.
 
 ```
 You are the <role-b> in a structured dialogue.
