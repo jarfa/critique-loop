@@ -305,7 +305,7 @@ If you detect `Status: STUCK`:
 
 ### Error Handling
 
-**Task tool failure:** If the Task tool returns an error when spawning or resuming:
+**Invocation failure:** If the subagent fails to run (Task tool error for Claude, non-zero exit code for Codex):
 - Report to user: "Subagent failed: <error>. How would you like to proceed?"
 - Options: retry, end dialogue, or provide guidance
 
@@ -313,23 +313,15 @@ If you detect `Status: STUCK`:
 - Report to user: "Subagent returned but didn't write a turn. How would you like to proceed?"
 - Options: retry spawn, end dialogue, or provide guidance
 
-#### Codex-Specific Error Handling (when `--partner codex`)
-
-**Non-zero exit code:** If the `codex exec` Bash command returns a non-zero exit code:
-- Read the stderr output from the Bash result
-- Report to user: "Codex failed (exit code <N>): <stderr summary>. How would you like to proceed?"
-- Options: retry, switch to `--partner claude` for the rest of the dialogue, or end dialogue
-
-**File not modified:** If Codex returns successfully but the dialogue file status is unchanged:
-- Same as the "Status unchanged" handling above
-
-**Malformed turn:** After Codex returns, check if the last line of the dialogue file is a valid `Status:` line (matching one of: `AWAITING <role>`, `PROPOSING_DONE`, `DONE`, `STUCK`). If not:
-- Report to user: "Codex wrote a turn but the format is malformed (last line: '<value>'). Please review the dialogue file at <path>."
+**Malformed turn:** After subagent returns, check if the last line of the dialogue file is a valid `Status:` line (matching one of: `AWAITING <role>`, `PROPOSING_DONE`, `DONE`, `STUCK`). If not:
+- Report to user: "Subagent wrote a turn but the format is malformed (last line: '<value>'). Please review the dialogue file at <path>."
 - Options: manually fix and continue, retry, or end dialogue
 
-**Timeout:** All Codex `exec` calls use a 300000ms (5 minute) Bash timeout. If the command times out:
+**Timeout (Codex only):** All Codex `exec` calls use a 300000ms (5 minute) Bash timeout. If the command times out:
 - Report to user: "Codex timed out after 5 minutes. How would you like to proceed?"
 - Options: retry, switch to `--partner claude`, or end dialogue
+
+**Note:** For any Codex error, "switch to `--partner claude` for the rest of the dialogue" is an additional recovery option.
 
 ---
 
@@ -359,6 +351,6 @@ These rules apply to all dialogue turns (written by subagents, not the orchestra
 
 1. **Append only** — Never edit previous turns
 2. **Status is always last** — Final line of each turn must be `Status: <value>`
-3. **Use Write tool** — All dialogue file writes use Write (read, append, write back)
+3. **Use Write tool** — Claude subagents use Write tool; Codex uses shell append (`cat >>`)
 4. **Round tracking** — Increment round when both parties have spoken
 5. **Orchestrator doesn't write turns** — Only creates header and coordinates subagents
