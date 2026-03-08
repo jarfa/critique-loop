@@ -22,7 +22,7 @@ INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
 
 ### Step 1: Detect partner
 
-The user's input after `/critique-loop` is free-form text. If "codex" appears anywhere in the text (e.g., "with codex", "using codex", "codex partner"), use Codex as the partner. Otherwise default to Claude. Strip the codex reference from the description.
+The user's input after `/critique-loop` is free-form text. If the user is asking for codex to be used (e.g., "with codex", "using codex", "codex partner"), use Codex as the partner. Otherwise default to Claude. Strip the codex reference from the description.
 
 **Codex validation:** If using Codex, run `codex --version` via the **Bash tool** to verify it's installed. If the command fails, tell the user: "Codex CLI not found. Install it or use Claude (default)." and stop.
 
