@@ -20,13 +20,30 @@ INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
 
 ## Phase 1: Setup
 
-### Step 1: Parse request
+### Step 1: Detect partner
 
-The user's input after `/critique-loop` is free-form text. Parse it to determine:
+The user's input after `/critique-loop` is free-form text. If "codex" appears anywhere in the text (e.g., "with codex", "using codex", "codex partner"), use Codex as the partner. Otherwise default to Claude. Strip the codex reference from the description.
 
-1. **Partner**: If "codex" appears anywhere in the text (e.g., "with codex", "using codex", "codex partner"), use Codex as the partner. Otherwise default to Claude. Strip the codex reference from the description.
-2. **Topic slug**: Derive by summarizing the remaining description. Lowercase, replace spaces/special chars with hyphens, truncate to ~50 chars. Example: "review my auth module" → `review-auth-module`.
-3. **Role names**: Choose two complementary roles suited to the task. Example pairs for inspiration (you are not limited to these):
+**Codex validation:** If using Codex, run `codex --version` via the **Bash tool** to verify it's installed. If the command fails, tell the user: "Codex CLI not found. Install it or use Claude (default)." and stop.
+
+### Step 2: Expand context
+
+The user's description may be brief. Before passing it to Subagent A, expand it into self-contained context:
+- If the user references prior conversation ("the idea we discussed", "that feature", etc.), expand it into a full description using your conversation history
+- Include relevant background: problem context, constraints, decisions already made
+- If you cannot confidently understand what the user wants to discuss, ask one clarifying question: "What are you looking to get out of this dialogue?"
+- The goal is for Subagent A to understand the task without access to your conversation history
+
+If the description is already self-contained, use it directly.
+
+This expanded context becomes the user context passed to Subagent A.
+
+### Step 3: Determine topic slug and roles
+
+Now that you fully understand the task:
+
+1. **Topic slug**: Derive by summarizing the description. Lowercase, replace spaces/special chars with hyphens, truncate to ~50 chars. Example: "review my auth module" → `review-auth-module`.
+2. **Role names**: Choose two complementary roles suited to the task. Example pairs for inspiration (you are not limited to these):
    - proposer / critic
    - architect / skeptic
    - author / reviewer
@@ -36,28 +53,14 @@ The user's input after `/critique-loop` is free-form text. Parse it to determine
 
    Role A = the role aligned with the user's perspective (proposer, author, advocate, etc.)
    Role B = the role that provides critique/alternative perspective (critic, reviewer, skeptic, etc.)
-4. **If unclear**: If you cannot confidently understand what the user wants to discuss, ask one clarifying question: "What are you looking to get out of this dialogue?"
 
-**Codex validation:** If using Codex, run `codex --version` via the **Bash tool** to verify it's installed. If the command fails, tell the user: "Codex CLI not found. Install it or use Claude (default)." and stop.
-
-### Step 2: Expand context
-
-The user's description may be brief. Before passing it to Subagent A, expand it into self-contained context:
-- If the user references prior conversation ("the idea we discussed", "that feature", etc.), expand it into a full description using your conversation history
-- Include relevant background: problem context, constraints, decisions already made
-- The goal is for Subagent A to understand the task without access to your conversation history
-
-If the description is already self-contained, use it directly.
-
-This expanded context becomes the user context passed to Subagent A.
-
-### Step 3: Check gitignore
+### Step 4: Check gitignore
 
 Check if `.dialogues/` is in the project's `.gitignore`. If not, ask the user: "Would you like me to add `.dialogues/` to your .gitignore? Dialogue files are typically not committed."
 
 If yes, append `.dialogues/` to `.gitignore` (create the file if it doesn't exist).
 
-### Step 4: Create the dialogue file
+### Step 5: Create the dialogue file
 
 Use the **Write tool** to create `.dialogues/<YYYYMMDD-HH:MM:SS>-<topic-slug>.md` (the Write tool will create the `.dialogues/` directory automatically):
 
@@ -80,7 +83,7 @@ Use the appropriate participant line based on the partner. Only include one `<ro
 
 Note: Both participants are listed upfront. Do NOT write any dialogue turns — the subagents will do that.
 
-### Step 5: Inform user and proceed
+### Step 6: Inform user and proceed
 
 When partner is Claude (default):
 Tell the user: "Starting dialogue. Spawning <role-a> and <role-b>..."
