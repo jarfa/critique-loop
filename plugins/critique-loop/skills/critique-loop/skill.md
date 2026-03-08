@@ -14,7 +14,6 @@ DIALOGUE_DIR="${DIALOGUE_DIR:-.dialogues}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)   # run via Bash tool to get actual time
 DIALOGUE_FILE="${DIALOGUE_DIR}/${TIMESTAMP}-<topic-slug>.md"
 INSTRUCTIONS_FILE="<path-to-this-plugin>/dialogue-partner-instructions.md"
-CODEX_PROMPT_FILE="/tmp/critique-loop-${TIMESTAMP}-<topic-slug>.txt"   # only used when partner is Codex
 ```
 
 ---
@@ -154,60 +153,20 @@ Remember this agent ID for resumption in the loop.
 
 #### When partner is Codex
 
-Instead of the Task tool, run Codex CLI in two steps to avoid permission-check friction.
-
-**Step 1:** Use the **Write tool** to create `<CODEX_PROMPT_FILE>` (see Configuration) with the following content. Replace `<absolute-path-to-plugin>` with the full absolute path to the plugin's directory (e.g., `/Users/.../plugins/critique-loop`). Codex cannot resolve plugin-relative paths.
-
-````
-You are the <role-b> in a structured dialogue.
-
-INSTRUCTIONS:
-
-1. Read the file <absolute-path-to-plugin>/dialogue-partner-instructions.md for full protocol rules.
-2. Read the file <dialogue-file> for the conversation so far.
-3. Determine the correct round number by finding the last "## [role] Round N" header in the dialogue file and following the round tracking rules (increment when both parties have spoken in round N).
-4. Write your response turn by appending to the dialogue file.
-
-HOW TO WRITE YOUR TURN:
-
-Use a shell command to append your turn to the dialogue file:
+Instead of the Task tool, use the **Bash tool** to run Codex CLI with a **timeout of 300000ms** (5 minutes).
 
 ```bash
-cat >> '<dialogue-file>' << '__CRITIQUE_LOOP_TURN_BOUNDARY_EOF__'
-
----
-
-## [<role-b>] Round N — YYYY-MM-DD HH:MM
-
-<Your message content here>
-
-Status: <STATUS>
-__CRITIQUE_LOOP_TURN_BOUNDARY_EOF__
+codex exec --full-auto -C "<project-root>" --skip-git-repo-check --ephemeral "<prompt>"
 ```
 
-Replace N with the correct round number (N+1 when appropriate), fill in the current date/time, write your actual message, and use the correct status.
+Where `<project-root>` is the current working directory and `<prompt>` is the following. **Important:** Replace `<absolute-path-to-plugin>` with the full absolute path to the plugin's directory (e.g., `/Users/.../plugins/critique-loop`). Codex cannot resolve plugin-relative paths.
 
-CRITICAL FORMAT RULES:
+**Important:** The prompt MUST NOT contain lines starting with `#` — this triggers permission checks. Use the template below exactly (section headers use `UPPERCASE:` labels, not markdown headers). The instructions file and dialogue file already contain the markdown turn format that Codex needs.
 
-- Your turn MUST start with `---` (horizontal rule) followed by a blank line
-- Header format: `## [<role-b>] Round N — YYYY-MM-DD HH:MM`
-- The `Status:` line MUST be the very last line of the file after your append
-- Valid statuses: `AWAITING <other-role>`, `PROPOSING_DONE`, `DONE`, `STUCK`
-- If the other party's last status is `PROPOSING_DONE`: either confirm with a summary + `Status: DONE`, or dispute with `Status: AWAITING <other-role>`
-- NEVER edit previous turns — only append
+```
+You are the <role-b> in a structured dialogue.
 
-IMPORTANT:
-
-- Do NOT use the Write tool or apply_patch — use the `cat >>` shell command shown above
-- Do NOT modify any files other than the dialogue file. Do not create files, run destructive commands, or make any changes beyond appending your turn.
-- Read the instructions file for role-specific guidance on how to approach the dialogue
-- Be a genuine, critical but helpful collaborator — not a yes-person
-````
-
-**Step 2:** Run Codex CLI using the **Bash tool** with a **timeout of 300000ms** (5 minutes), piping the prompt via stdin:
-
-```bash
-codex exec --full-auto -C "<project-root>" --skip-git-repo-check --ephemeral - < <CODEX_PROMPT_FILE>
+Read <absolute-path-to-plugin>/dialogue-partner-instructions.md for full protocol rules and turn format. Then read <dialogue-file> for the conversation so far. Write your response turn by appending to the dialogue file using cat >> with a heredoc, following the exact turn format from the instructions file. Use the correct round number (increment when both parties have spoken). Do NOT use the Write tool or apply_patch. Do NOT modify any files other than the dialogue file. Be a genuine, critical but helpful collaborator — not a yes-person.
 ```
 
 **Important:** Do NOT pass the user's goal to Codex. Let it read and interpret the file itself for an unbiased perspective.
@@ -258,7 +217,7 @@ Resume Subagent B using the **Task tool** with:
 - `prompt`: `"Continue the dialogue. Read the file for the latest turn and respond."`
 
 **When partner is Codex:**
-Follow the same two-step process as in "Spawn Subagent B / When partner is Codex" above (write prompt file, then run `codex exec`). Codex has no session resume; the dialogue file carries all context, so nothing is lost.
+Execute a fresh `codex exec` call using the **Bash tool** — same command and prompt as in "Spawn Subagent B / When partner is Codex" above. Codex has no session resume; the dialogue file carries all context, so nothing is lost.
 
 ### Max Rounds Check
 
