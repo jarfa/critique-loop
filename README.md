@@ -41,7 +41,7 @@ Just describe what you want in plain text:
 /critique-loop review the auth module with codex
 ```
 
-The plugin infers appropriate roles (e.g., "proposer" / "critic" for planning, "author" / "reviewer" for reviews) and starts the dialogue automatically. Say "codex" anywhere in your description to use Codex as the partner instead of Claude.
+The plugin infers appropriate roles (e.g., "proposer" / "critic" for planning, "author" / "reviewer" for reviews) and starts the dialogue automatically. Say something like "with codex" in your description to use Codex as the second partner instead of Claude.
 
 ## How It Works
 
