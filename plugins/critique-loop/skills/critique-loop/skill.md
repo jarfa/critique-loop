@@ -56,42 +56,40 @@ If yes, append `.dialogues/` to `.gitignore` (create the file if it doesn't exis
 
 ### Step 3: Determine roles
 
-- If `--template` provided: Use roles from template table
-- If `--role1`/`--role2` provided: Use those role names
+Using the user's description, choose two complementary role names that suit the task. See the example pairs in "Understand Request" above for inspiration.
 
-Role A = first role (from template or `--role1`)
-Role B = second role (from template or `--role2`)
+Role A = the role aligned with the user's perspective (proposer, author, advocate, etc.)
+Role B = the role that provides critique/alternative perspective (critic, reviewer, skeptic, etc.)
 
 ### Step 4: Create the dialogue file
 
-Use the **Write tool** to create `.dialogues/<topic>.md` (the Write tool will create the `.dialogues/` directory automatically):
+Use the **Write tool** to create `.dialogues/<YYYYMMDD-HH:MM:SS>-<topic-slug>.md` (the Write tool will create the `.dialogues/` directory automatically):
 
 ```markdown
-# Dialogue: <topic>
+# Dialogue: <topic-slug>
 
 Started: <YYYY-MM-DD HH:MM>
-Template: <template>          # Only if using a template
-Max rounds: <max-rounds>
+Max rounds: 5
 
 Participants:
   - <role-a> @ <current working directory>
-  - <role-b> (subagent)            # when --partner claude (default)
-  - <role-b> (codex)               # when --partner codex
+  - <role-b> (subagent)            # when partner is Claude
+  - <role-b> (codex)               # when partner is Codex
 
 ---
 
 ```
 
-Use the appropriate participant line based on `--partner`. Only include one `<role-b>` line (not both).
+Use the appropriate participant line based on the partner. Only include one `<role-b>` line (not both).
 
 Note: Both participants are listed upfront. Do NOT write any dialogue turns — the subagents will do that.
 
 ### Step 5: Inform user and proceed
 
-When `--partner claude` (default):
+When partner is Claude (default):
 Tell the user: "Starting dialogue. Spawning <role-a> and <role-b>..."
 
-When `--partner codex`:
+When partner is Codex:
 Tell the user: "Starting dialogue. Spawning <role-a> (Claude) and <role-b> (Codex)..."
 
 Now proceed to Phase 2: Dialogue Loop.
