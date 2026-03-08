@@ -221,6 +221,7 @@ Replace N with the correct round number (N+1 when appropriate), fill in the curr
 ## Important
 
 - Do NOT use the Write tool or apply_patch — use the `cat >>` shell command shown above
+- Do NOT modify any files other than the dialogue file. Do not create files, run destructive commands, or make any changes beyond appending your turn.
 - Read the instructions file for role-specific guidance on how to approach the dialogue
 - Be a genuine, critical but helpful collaborator — not a yes-person
 ````
@@ -233,10 +234,13 @@ Codex has no session resume — each call is stateless. No agent ID to store.
 
 Before each spawn/resume:
 1. Store current status: `PREV_STATUS=$(tail -1 .dialogues/<topic>.md)`
+2. Store header count: `PREV_HEADERS=$(grep -c '## \[' .dialogues/<topic>.md)`
 
 After subagent returns:
-2. Get new status: `NEW_STATUS=$(tail -1 .dialogues/<topic>.md)`
-3. If `PREV_STATUS == NEW_STATUS`: subagent didn't write → go to Error Handling
+3. Get new status: `NEW_STATUS=$(tail -1 .dialogues/<topic>.md)`
+4. If `PREV_STATUS == NEW_STATUS`: subagent didn't write → go to Error Handling
+5. Get new header count: `NEW_HEADERS=$(grep -c '## \[' .dialogues/<topic>.md)`
+6. If `NEW_HEADERS - PREV_HEADERS != 1`: subagent wrote multiple turns or no header → go to Error Handling
 
 ### Loop Logic
 

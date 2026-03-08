@@ -25,7 +25,8 @@ Critique Loop is a Claude Code plugin that enables structured, turn-based dialog
 
    Participants:
      - <role1> @ <directory>
-     - <role2> (partner)
+     - <role2> (subagent)            # when --partner claude (default)
+     - <role2> (codex)               # when --partner codex
 
    ---
 
@@ -36,11 +37,13 @@ Critique Loop is a Claude Code plugin that enables structured, turn-based dialog
 
 ### Coordination Model
 
-- **Two-subagent architecture:** Orchestrator spawns Subagent A (user's role) and Subagent B (partner role); both write turns via Write tool in subagent context (hidden from terminal)
+- **Two-subagent architecture:** Orchestrator spawns Subagent A (user's role) and Subagent B (partner role); both write turns in subagent context (hidden from terminal)
+- **Partner selection (`--partner`):** Subagent B defaults to Claude (`--partner claude`) but can be Codex CLI (`--partner codex`). Codex is stateless — each turn is a fresh `codex exec --full-auto --ephemeral` invocation. It reads the dialogue file for context and appends via heredoc (`cat >>`), since it lacks a Write tool. Claude subagents use the Task tool with resume for multi-turn context.
 - **Task tool orchestration:** Orchestrator spawns, resumes, and coordinates subagents; subagents return after writing each turn
 - **Append-only protocol:** Prevents conflicting edits; turns are immutable
 - **Status-driven flow:** Last line of each turn declares who acts next
 - **Unbiased partner:** Subagent B receives no user context—reads dialogue file fresh for objective critique
+- **Codex failure modes:** Non-zero exit code, file not modified, malformed turn (invalid `Status:` line), and timeout (5-minute cap). Each offers the user options: retry, switch to `--partner claude`, or end dialogue.
 
 ### Templates
 
@@ -59,9 +62,14 @@ Run Claude Code with the plugin:
 claude --plugin-dir plugins/critique-loop
 ```
 
-Test:
+Test with Claude partner (default):
 ```bash
 /critique-loop --template planning --topic test-topic
+```
+
+Test with Codex partner:
+```bash
+/critique-loop --template planning --topic test-topic --partner codex
 ```
 
 Verify:
@@ -70,6 +78,7 @@ Verify:
 - NO Write/Read tool output during dialogue loop (hidden in subagents)
 - User sees final summary when done
 - Dialogue file contains correct turn history
+- When using `--partner codex`: Codex CLI must be installed (`codex --version` is checked at startup)
 
 ### Key Files
 
@@ -85,7 +94,8 @@ When modifying the skill, preserve these invariants:
 
 1. **Append only** - Never edit previous turns
 2. **Status is always last** - Final line of each turn must be `Status: <value>`
-3. **Use Write tool** - All dialogue file writes use Write (read, append, write back)
+3. **Use Write tool** - Claude subagents use Write tool; Codex uses shell append (`cat >>`) since it lacks a Write tool
 4. **Round tracking** - Increment round when both parties have spoken
 5. **Orchestrator never writes turns** - Only creates header and coordinates subagents
 6. **Unbiased Subagent B** - Partner reads file itself, orchestrator doesn't summarize content to it
+7. **Single-turn enforcement** - After each subagent returns, verify exactly one new `## [` header was added (header-count delta = 1)
