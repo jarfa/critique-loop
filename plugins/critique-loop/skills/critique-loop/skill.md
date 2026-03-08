@@ -26,7 +26,7 @@ The user's input after `/critique-loop` is free-form text. If the user is asking
 
 Only treat "codex" as a partner request when it appears as a qualifier indicating the agent, not when it describes the subject matter (e.g., "review my codex-based API" is about codex, not requesting it as a partner). If the intent is ambiguous, ask: "Did you want Codex as the dialogue partner, or is that part of the topic?"
 
-**Round count:** If the user specifies a round count (e.g., "in 3 rounds", "max 8 rounds", "quick — 2 rounds"), use that instead of the default 5. Strip the round-count reference from the description.
+**Round count:** If the user specifies a round count (e.g., "in 3 rounds", "max 8 rounds"), use that instead of the default 5 (clamp to 1–20). Strip the round-count reference from the description.
 
 **Codex validation:** If using Codex, run `codex --version` via the **Bash tool** to verify it's installed. If the command fails, tell the user: "Codex CLI not found. Install it or use Claude (default)." and stop.
 
@@ -57,6 +57,8 @@ Now that you fully understand the task:
 
    Role A = the role aligned with the user's perspective (proposer, author, advocate, etc.)
    Role B = the role that provides critique/alternative perspective (critic, reviewer, skeptic, etc.)
+
+   Use lowercase kebab-case for role names (e.g., `devil's-advocate`, not `Devil's Advocate`).
 
 ### Step 4: Check gitignore
 
